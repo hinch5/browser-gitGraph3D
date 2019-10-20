@@ -1,0 +1,6 @@
+class Texture{
+	GL;
+	constructor() {
+		
+	}
+}

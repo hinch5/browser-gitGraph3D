@@ -1,0 +1,51 @@
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>WebGl</title>
+	<link rel="stylesheet" href="/static/css/styles.css">
+	<script id="vertex-shader" type="x-shader/x-vertex">
+		attribute vec4 position;
+		attribute vec4 color;
+
+		uniform mat4 model;
+		uniform mat4 view;
+
+		varying lowp vec4 outColor;
+		void main(void)
+		{
+			gl_Position = view*model*position;
+			outColor = color;
+		}
+	</script>
+	<script id="vertex-non-transform-shader" type="x-shader/x-vertex">
+		attribute vec4 position;
+		attribute vec4 color;
+
+		varying lowp vec4 outColor
+		void main(void)
+		{
+			gl_Position = position;
+			outColor = color;
+		}
+	</script>
+	<script id="fragment-shader" type="x-shader/x-fragment">
+		varying lowp vec4 outColor;
+
+		void main()
+		{
+			gl_FragColor = outColor;
+		}
+	</script>
+	<script type="text/javascript" src="/static/js/gl-matrix-min.js"></script>
+	<script type="text/javascript" src="/static/js/canvas.js"></script>
+	<script type="text/javascript" src="/static/js/program.js"></script>
+	<script type="text/javascript" src="/static/js/loader.js"></script>
+	<script type="text/javascript" src="/static/js/work_space.js"></script>
+	<script type="text/javascript" src="/static/js/vertex.js"></script>
+	<script type="text/javascript" src="/static/js/graph.js"></script>
+	<script type="text/javascript" src="/static/js/index.js"></script>
+</head>
+<body class="main" onload="start()">
+<canvas id="graph" class="canvas"></canvas>
+</body>
+</html>
