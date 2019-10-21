@@ -17,8 +17,11 @@ const MIN_PERCENT_SPLIT = 0.25;
 const SPHERE_STACK_COUNT = 8;
 const SPHERE_SECTOR_COUNT = 8;
 const VERTEX_SIZE = (SPHERE_SECTOR_COUNT + 1) * (SPHERE_STACK_COUNT + 1);
-const SPHERE_RADIUS = 0.05;
+const SPHERE_RADIUS = 0.06;
 const SKIP_COORDS = 1;
+const GRAPH_WIDTH = 1.4;
+const GRAPH_HEIGHT = 1.4;
+const GRAPH_DEPTH = 1.4;
 
 class WorkSpace {
 	angles;
@@ -32,7 +35,7 @@ class WorkSpace {
 	constructor() {
 		this.angles = [0, 0, 0];
 		this.translate = [0, 0, 0];
-		this.scale = 1.0;
+		this.scale = 0.0;
 		window.addEventListener('keydown', this.transformation);
 
 		this.loader = new Loader();
@@ -79,7 +82,7 @@ class WorkSpace {
 		glMatrix.mat4.fromXRotation(model, glMatrix.glMatrix.toRadian(this.angles[0]));
 		glMatrix.mat4.rotateY(model, model, glMatrix.glMatrix.toRadian(this.angles[1]));
 		glMatrix.mat4.rotateZ(model, model, glMatrix.glMatrix.toRadian(this.angles[2]));
-		glMatrix.mat4.fromScaling(view, glMatrix.vec3.fromValues(this.scale, this.aspectRatioBalance + this.scale, this.scale));
+		glMatrix.mat4.fromScaling(view, glMatrix.vec3.fromValues(this.aspectRatioBalance * (1 + this.scale), 1 + this.scale, 1 + this.scale));
 		glMatrix.mat4.translate(view, view, glMatrix.vec3.fromValues(this.translate[0], this.translate[1], this.translate[2]));
 		this.canvas.draw(model, view);
 

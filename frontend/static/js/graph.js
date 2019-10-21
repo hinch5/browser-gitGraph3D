@@ -48,6 +48,73 @@ class Rect3D {
 	}
 }
 
+class GitContributor {
+	name;
+	centerX;
+	centerY;
+	centerZ;
+	radius;
+	coords;
+	indices;
+	colors;
+	skip;
+
+	constructor(name) {
+		this.name = name;
+	}
+	updCenter = (x, y, z, radius) => {
+		this.centerX = x;
+		this.centerY = y;
+		this.centerZ = z;
+		this.radius = radius;
+	};
+	buildCoords = (skip) => {
+		this.coords = [];
+		this.indices = [];
+		this.colors = [];
+		let x, y, z, xz;
+		// this.centerX = this.boundRect.centerX;
+		// this.centerY = GRAPH_HEIGHT/2 - (this.level*(GRAPH_HEIGHT/height)) - (GRAPH_HEIGHT/(2*height));
+		// this.centerZ = this.boundRect.centerY;
+		this.skip = skip;
+		// const minRect = Math.min(this.boundRect.width, this.boundRect.height, GRAPH_HEIGHT/(2*height));
+		// if (SPHERE_RADIUS <= minRect) {
+		// 	this.radius = SPHERE_RADIUS;
+		// } else {
+		// 	this.radius = minRect;
+		// }
+		const sectorStep = 2 * Math.PI / SPHERE_SECTOR_COUNT, stackStep = Math.PI / SPHERE_STACK_COUNT;
+		for (let i = 0; i <= SPHERE_STACK_COUNT; i++) {
+			const stackAngle = Math.PI / 2 - i * stackStep;
+			xz = this.radius * Math.cos(stackAngle);
+			y = this.centerY + this.radius * Math.sin(stackAngle);
+			for (let j = 0; j <= SPHERE_SECTOR_COUNT; j++) {
+				const sectorAngle = j * sectorStep;
+
+				z = this.centerZ + xz * Math.sin(sectorAngle);
+				x = this.centerX + xz * Math.cos(sectorAngle);
+
+				this.coords.push(x, y, z, 1.0);
+				this.colors.push(0.0, 0.0, 1.0, 1.0);
+			}
+		}
+		for (let i = 0; i < SPHERE_STACK_COUNT; i++) {
+			let k1 = i * (SPHERE_SECTOR_COUNT + 1);
+			let k2 = k1 + SPHERE_SECTOR_COUNT + 1;
+			for (let j = 0; j < SPHERE_SECTOR_COUNT; j++, k1++, k2++) {
+				if (i !== 0) {
+					this.indices.push(this.skip + k1, this.skip + k2, this.skip + k1 + 1);
+				}
+				if (i !== (SPHERE_STACK_COUNT - 1)) {
+					this.indices.push(this.skip + k1 + 1, this.skip + k2, this.skip + k2 + 1);
+				}
+			}
+		}
+		this.coords.push(this.centerX, this.centerY, this.centerZ, 1.0);
+		this.colors.push(1.0, 1.0, 0.0, 1.0)
+	};
+}
+
 class GitObject {
 	isDir;
 	children;
@@ -115,10 +182,10 @@ class GitObject {
 		this.colors = [];
 		let x, y, z, xz;
 		this.centerX = this.boundRect.centerX;
-		this.centerY = 0.5 - (this.level*(1/height)) - (1/(2*height));
+		this.centerY = GRAPH_HEIGHT/2 - (this.level*(GRAPH_HEIGHT/height)) - (GRAPH_HEIGHT/(2*height));
 		this.centerZ = this.boundRect.centerY;
 		this.skip = skip;
-		const minRect = Math.min(this.boundRect.width, this.boundRect.height, 1/(2*height));
+		const minRect = Math.min(this.boundRect.width, this.boundRect.height, GRAPH_HEIGHT/(2*height));
 		if (SPHERE_RADIUS <= minRect) {
 			this.radius = SPHERE_RADIUS;
 		} else {
@@ -153,6 +220,17 @@ class GitObject {
 		}
 		this.coords.push(this.centerX, this.centerY, this.centerZ, 1.0);
 		this.colors.push(1.0, 0.0, 0.0, 1.0)
+	};
+	equals = (vertex) => {
+		if (this.path.length !== vertex.path.length) {
+			return false;
+		}
+		for (let i = 0; i < this.path.length; i++) {
+			if (this.path[i] !== vertex.path[i]) {
+				return false;
+			}
+		}
+		return true;
 	};
 
 	set boundRect(rect) {
@@ -204,10 +282,6 @@ class GitObject {
 	}
 }
 
-class GitUpdate {
-
-}
-
 class Graph {
 	height;
 	coords;
@@ -215,14 +289,16 @@ class Graph {
 	colors;
 	root;
 	edgeIndices;
+	contributors;
 
 	constructor() {
 		this.root = new GitObject([], true, 0, null);
-		this.root.boundRect = new Rect3D(-0.5, -0.5, 1.0, 1.0);
+		this.root.boundRect = new Rect3D(-GRAPH_WIDTH/2, -GRAPH_DEPTH/2, GRAPH_WIDTH, GRAPH_DEPTH);
 		this.height = 1;
 		this.coords = [];
 		this.indices = [];
 		this.colors = [];
+		this.contributors = new Map();
 		this.addElement(new GitObject(['sos', 'h', 'sos.json'], false));
 		this.addElement(new GitObject(['zhizn'], true));
 		this.addElement(new GitObject(['zhizn', 'v.json'], false));
@@ -232,26 +308,29 @@ class Graph {
 		this.addElement(new GitObject(['file.txt']), false);
 		this.addElement(new GitObject(['zhizn', 'smert', 'rip.py']), false);
 		this.addElement(new GitObject(['zhizn', 'help.md'], false));
+		this.addElement(new GitObject(['zhizn', 'smert', 'rip.js']), false);
 		this.splitSpace();
-		console.log(this);
+		// console.log(this);
 	};
 
 	addElement = (element) => {
-		this.tryAddElement(this.root, element, 0);
+		const res = this.tryAddElement(this.root, element, 0);
 		this.splitSpace();
+		return res;
 	};
 	tryAddElement = (parent, element, pathInd) => {
 		for (let i = 0; i < parent.children.length; i++) {
-			if (parent.children[i].path[0] === element.path[pathInd]) {
+			if (parent.children[i].path[pathInd] === element.path[pathInd]) {
 				if (!parent.children[i].isDir) {
 					console.log('smert not folder');
+					return null;
 				}
 				if (pathInd + 1 !== element.path.length) {
-					this.tryAddElement(parent.children[i], element, pathInd + 1);
+					return this.tryAddElement(parent.children[i], element, pathInd + 1);
 				} else {
 					console.log('smert');
+					return parent;
 				}
-				return;
 			}
 		}
 		let p = parent;
@@ -264,6 +343,47 @@ class Graph {
 		if (p.level + 2 > this.height) {
 			this.height = p.level + 2;
 		}
+		return p;
+	};
+	findElement = (parent, element, pathInd) => {
+		for (let i = 0; i < parent.children.length; i++) {
+			if (parent.children[i].path[pathInd] === element.path[pathInd]) {
+				if (!parent.children[i].isDir) {
+					console.log('smert not folder');
+				}
+				if (pathInd === element.path.length - 1) {
+					return parent.parent;
+				}
+				return this.findElement(parent.children[i], element, pathInd + 1)
+			}
+		}
+		return null;
+	};
+	updElements = (author, elements) => {
+		let contributor = null;
+		if (this.contributors.has(author)) {
+			contributor = this.contributors.get(author);
+		} else {
+			contributor = new GitContributor(author);
+		}
+		const updates = new Map();
+		for (let i = 0; i < elements.length; i++) {
+			let p = this.findElement(this.root, elements[i], 0);
+			if (p !== null) {
+				p = this.addElement(elements[i]);
+			}
+			for (let j = 0; j < p.children.length; j++) {
+				if (p.children[j].path[p.children[j].path.length - 1] === elements[i].path[elements[i].path.length-1]) {
+					if (updates.has(p.path.join('/'))) {
+						updates.get(p.path.join('/').push(p.children[j]));
+					} else {
+						updates.set(p.path.join('/'), p.children[j]);
+					}
+				}
+			}
+		}
+
+		// draw updates
 	};
 	splitSpace = () => {
 		const stack = [[[this.root], this.root.boundRect]];
@@ -305,7 +425,6 @@ class Graph {
 		const stack = [[[this.root], null]];
 		while (stack.length !== 0) {
 			const vertexSet = stack.pop();
-			// console.log(vertexSet);
 			for (let i = 0; i < vertexSet[0].length; i++) {
 				vertexSet[0][i].buildSphere(this.height, skip);
 				this.coords = this.coords.concat(vertexSet[0][i].coords);
@@ -320,7 +439,6 @@ class Graph {
 				skip += VERTEX_SIZE + SKIP_COORDS;
 			}
 		}
-		// console.log(this.edgeIndices);
 	};
 
 	get coords() {
