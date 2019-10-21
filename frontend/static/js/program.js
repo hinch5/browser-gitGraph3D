@@ -10,9 +10,9 @@ class Program {
 		const vertexShader = this.getShader(vertex);
 		const fragmentShader = this.getShader(fragment);
 		this.shaderProgram = this.GL.createProgram();
-		this.GL.attachShader(this.shaderProgram, vertexShader);
-		this.GL.attachShader(this.shaderProgram, fragmentShader);
-		this.GL.linkProgram(this.shaderProgram);
+		// this.GL.attachShader(this.shaderProgram, vertexShader);
+		// this.GL.attachShader(this.shaderProgram, fragmentShader);
+		// this.GL.linkProgram(this.shaderProgram);
 
 		if (!this.GL.getProgramParameter(this.shaderProgram, this.GL.LINK_STATUS)) {
 			console.log('link shader program err');
@@ -55,14 +55,14 @@ class Program {
 		return shader;
 	};
 	use = () => {
-		this.GL.useProgram(this.program);
-		this.vertexAttrib = this.GL.getAttribLocation(this.program, "position");
-		this.GL.enableVertexAttribArray(this.vertexAttrib);
-		this.colorAttrib = this.GL.getAttribLocation(this.program, "color");
-		this.GL.enableVertexAttribArray(this.colorAttrib);
-		for (const m of this.uniformLocations.keys()) {
-			this.uniformLocations.set(m, this.GL.getUniformLocation(this.shaderProgram, m));
-		}
+		// this.GL.useProgram(this.program);
+		// this.vertexAttrib = this.GL.getAttribLocation(this.program, "position");
+		// this.GL.enableVertexAttribArray(this.vertexAttrib);
+		// this.colorAttrib = this.GL.getAttribLocation(this.program, "color");
+		// this.GL.enableVertexAttribArray(this.colorAttrib);
+		// for (const m of this.uniformLocations.keys()) {
+		// 	this.uniformLocations.set(m, this.GL.getUniformLocation(this.shaderProgram, m));
+		// }
 	};
 	get vertexAttrib() {
 		return this.vertexAttrib;

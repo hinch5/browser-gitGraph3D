@@ -5,6 +5,7 @@ class Canvas {
 	vertexBuffer;
 	indexBuffer;
 	colorBuffer;
+	indexBufferEdges;
 	modelUniform;
 	viewUniform;
 	shaderProgram;
@@ -24,8 +25,7 @@ class Canvas {
 			this.GL.depthFunc(this.GL.LEQUAL);
 			this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
 		}
-		const p = new Program(this.GL, 'vertex-shader', 'fragment-shader');
-		// this.initShaders('vertex-shader', 'fragment-shader');
+		this.initShaders('vertex-shader', 'fragment-shader');
 		this.initBuffers();
 	}
 
@@ -40,28 +40,31 @@ class Canvas {
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
 		this.GL.vertexAttribPointer(this.colorAttrib, 4, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-		// this.GL.drawArrays(this.GL.TRIANGLES, 0, 3);
-		this.GL.drawElements(this.GL.TRIANGLES, this.indexBuffer.length, this.GL.UNSIGNED_SHORT, 0);
+		this.GL.drawArrays(this.GL.TRIANGLES, 0, 3);
+		this.GL.drawElements(this.GL.TRIANGLES, this.graph.indices.length, this.GL.UNSIGNED_SHORT, 0);
+
+		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
+		this.GL.drawElements(this.GL.LINES, this.graph.edgeIndices.length, this.GL.UNSIGNED_SHORT, 0);
 	};
-	
+
 	initShaders = (vertex, fragment) => {
 		let fragmentShader = this.getShader(this.GL, fragment);
 		let vertexShader = this.getShader(this.GL, vertex);
-		
-		let shaderProgram = this.GL.createProgram();
-		this.GL.attachShader(shaderProgram, vertexShader);
-		this.GL.attachShader(shaderProgram, fragmentShader);
-		this.GL.linkProgram(shaderProgram);
-		
-		if (!this.GL.getProgramParameter(shaderProgram, this.GL.LINK_STATUS)) {
+
+		this.shaderProgram = this.GL.createProgram();
+		this.GL.attachShader(this.shaderProgram, vertexShader);
+		this.GL.attachShader(this.shaderProgram, fragmentShader);
+		this.GL.linkProgram(this.shaderProgram);
+
+		if (!this.GL.getProgramParameter(this.shaderProgram, this.GL.LINK_STATUS)) {
 			alert("Unable to initialize the shader program.");
 		}
 
-		this.GL.useProgram(shaderProgram);
+		this.GL.useProgram(this.shaderProgram);
 
-		this.vertexAttrib = this.GL.getAttribLocation(shaderProgram, "position");
+		this.vertexAttrib = this.GL.getAttribLocation(this.shaderProgram, "position");
 		this.GL.enableVertexAttribArray(this.vertexAttrib);
-		this.colorAttrib = this.GL.getAttribLocation(shaderProgram, "color");
+		this.colorAttrib = this.GL.getAttribLocation(this.shaderProgram, "color");
 		this.GL.enableVertexAttribArray(this.colorAttrib);
 	};
 	getShader = (gl, id) => {
@@ -90,7 +93,7 @@ class Canvas {
 		}
 		gl.shaderSource(shader, theSource);
 		gl.compileShader(shader);
-		
+
 		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
 			alert(gl.getShaderInfoLog(shader));
 			return null;
@@ -104,8 +107,12 @@ class Canvas {
 		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.coords), this.GL.STATIC_DRAW);
 
 		this.indexBuffer = this.GL.createBuffer();
-		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.indexBuffer);
-		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Uint16Array(this.graph.indices), this.GL.STATIC_DRAW);
+		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.graph.indices), this.GL.STATIC_DRAW);
+		
+		this.indexBufferEdges = this.GL.createBuffer();
+		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
+		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.graph.edgeIndices), this.GL.STATIC_DRAW);
 
 		this.colorBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
@@ -118,4 +125,10 @@ class Canvas {
 			this.GL.viewport(0, 0, this.canvas.width, this.canvas.height);
 		}
 	};
+	get width(){
+		return this.canvas.width;
+	}
+	get height() {
+		return this.canvas.height;
+	}
 }

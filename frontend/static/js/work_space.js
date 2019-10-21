@@ -14,33 +14,35 @@
 // 68 d
 
 const MIN_PERCENT_SPLIT = 0.25;
-const SPHERE_STACK_COUNT = 4;
-const SPHERE_SECTOR_COUNT = 4;
+const SPHERE_STACK_COUNT = 8;
+const SPHERE_SECTOR_COUNT = 8;
+const VERTEX_SIZE = (SPHERE_SECTOR_COUNT + 1) * (SPHERE_STACK_COUNT + 1);
 const SPHERE_RADIUS = 0.05;
+const SKIP_COORDS = 1;
 
 class WorkSpace {
 	angles;
 	translate;
 	scale;
-	keys;
 	canvas;
 	loader;
 	graph;
-	images;
+	aspectRatioBalance;
 
 	constructor() {
 		this.angles = [0, 0, 0];
 		this.translate = [0, 0, 0];
 		this.scale = 1.0;
 		window.addEventListener('keydown', this.transformation);
-		
+
 		this.loader = new Loader();
 		this.graph = new Graph();
 
 		this.canvas = new Canvas(this.graph);
+		this.aspectRatioBalance = this.canvas.height/this.canvas.width;
 		this.drawScene();
 	}
-	
+
 	transformation = (ev) => {
 		if (ev.keyCode === 219) {
 			this.angles[2] += this.angles[2] === 358 ? -358 : 2;
@@ -77,10 +79,10 @@ class WorkSpace {
 		glMatrix.mat4.fromXRotation(model, glMatrix.glMatrix.toRadian(this.angles[0]));
 		glMatrix.mat4.rotateY(model, model, glMatrix.glMatrix.toRadian(this.angles[1]));
 		glMatrix.mat4.rotateZ(model, model, glMatrix.glMatrix.toRadian(this.angles[2]));
-		glMatrix.mat4.fromScaling(view, glMatrix.vec3.fromValues(this.scale, this.scale, this.scale));
+		glMatrix.mat4.fromScaling(view, glMatrix.vec3.fromValues(this.scale, this.aspectRatioBalance + this.scale, this.scale));
 		glMatrix.mat4.translate(view, view, glMatrix.vec3.fromValues(this.translate[0], this.translate[1], this.translate[2]));
 		this.canvas.draw(model, view);
-		
+
 		setTimeout(this.drawScene, 10);
 	};
 }
