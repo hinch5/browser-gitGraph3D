@@ -1,13 +1,16 @@
 class Canvas {
+	graph;
 	canvas;
 	GL;
 	vertexBuffer;
+	indexBuffer;
 	colorBuffer;
 	modelUniform;
 	viewUniform;
 	shaderProgram;
 
-	constructor() {
+	constructor(graph) {
+		this.graph = graph;
 		this.canvas = document.getElementById('graph');
 		this.canvas.parentNode.addEventListener('resize', this.resize, false);
 		this.resize();
@@ -36,7 +39,9 @@ class Canvas {
 		this.GL.vertexAttribPointer(this.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
 		this.GL.vertexAttribPointer(this.colorAttrib, 4, this.GL.FLOAT, true, 0, 0);
-		this.GL.drawArrays(this.GL.TRIANGLES, 0, 3);
+		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+		// this.GL.drawArrays(this.GL.TRIANGLES, 0, 3);
+		this.GL.drawElements(this.GL.TRIANGLES, this.indexBuffer.length, this.GL.UNSIGNED_SHORT, 0);
 	};
 	
 	initShaders = (vertex, fragment) => {
@@ -94,23 +99,17 @@ class Canvas {
 		return shader;
 	};
 	initBuffers = () => {
-		const vertices = [
-			0.5, 0.5, 0.5, 1.0,
-			-0.5, 0.5, 0.5, 1.0,
-			0.5, 0, 0.5, 1.0
-		];
-		const colors = [
-			1.0, 0, 0, 1.0,
-			0, 1.0, 0, 1.0,
-			0, 0, 1.0, 1.0
-		];
 		this.vertexBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
-		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(vertices), this.GL.STATIC_DRAW);
+		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.coords), this.GL.STATIC_DRAW);
+
+		this.indexBuffer = this.GL.createBuffer();
+		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.indexBuffer);
+		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Uint16Array(this.graph.indices), this.GL.STATIC_DRAW);
 
 		this.colorBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
-		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(colors), this.GL.STATIC_DRAW);
+		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.colors), this.GL.STATIC_DRAW);
 	};
 	resize = () => {
 		this.canvas.width = this.canvas.parentNode.getBoundingClientRect().width;

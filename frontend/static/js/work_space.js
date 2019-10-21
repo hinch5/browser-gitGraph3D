@@ -13,6 +13,11 @@
 // 83 s
 // 68 d
 
+const MIN_PERCENT_SPLIT = 0.25;
+const SPHERE_STACK_COUNT = 4;
+const SPHERE_SECTOR_COUNT = 4;
+const SPHERE_RADIUS = 0.05;
+
 class WorkSpace {
 	angles;
 	translate;
@@ -20,6 +25,7 @@ class WorkSpace {
 	keys;
 	canvas;
 	loader;
+	graph;
 	images;
 
 	constructor() {
@@ -29,8 +35,9 @@ class WorkSpace {
 		window.addEventListener('keydown', this.transformation);
 		
 		this.loader = new Loader();
+		this.graph = new Graph();
 
-		this.canvas = new Canvas();
+		this.canvas = new Canvas(this.graph);
 		this.drawScene();
 	}
 	
