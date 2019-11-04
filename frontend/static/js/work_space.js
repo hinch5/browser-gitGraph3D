@@ -22,6 +22,7 @@ const SKIP_COORDS = 1;
 const GRAPH_WIDTH = 1.4;
 const GRAPH_HEIGHT = 1.4;
 const GRAPH_DEPTH = 1.4;
+const SPEED = 3600*24;
 
 class WorkSpace {
 	angles;
@@ -31,11 +32,14 @@ class WorkSpace {
 	loader;
 	graph;
 	aspectRatioBalance;
+	now;
+	begin;
 
 	constructor() {
 		this.angles = [0, 0, 0];
 		this.translate = [0, 0, 0];
 		this.scale = 0.0;
+		this.begin = Date.now();
 		window.addEventListener('keydown', this.transformation);
 
 		this.loader = new Loader();
@@ -78,12 +82,23 @@ class WorkSpace {
 		}
 	};
 	drawScene = () => {
+		let delta;
+		if (!this.now) {
+			this.now = Date.now();
+			delta = 0;
+		} else {
+			const t = Date.now();
+			delta = t- this.now;
+			this.now = t;
+		}
+		this.begin += SPEED*delta;
 		let model = glMatrix.mat4.create(), view = glMatrix.mat4.create();
 		glMatrix.mat4.fromXRotation(model, glMatrix.glMatrix.toRadian(this.angles[0]));
 		glMatrix.mat4.rotateY(model, model, glMatrix.glMatrix.toRadian(this.angles[1]));
 		glMatrix.mat4.rotateZ(model, model, glMatrix.glMatrix.toRadian(this.angles[2]));
 		glMatrix.mat4.fromScaling(view, glMatrix.vec3.fromValues(this.aspectRatioBalance * (1 + this.scale), 1 + this.scale, 1 + this.scale));
 		glMatrix.mat4.translate(view, view, glMatrix.vec3.fromValues(this.translate[0], this.translate[1], this.translate[2]));
+		this.canvas.writeDate(this.begin);
 		this.canvas.draw(model, view);
 
 		setTimeout(this.drawScene, 10);

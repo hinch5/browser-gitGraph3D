@@ -1,6 +1,7 @@
 class Canvas {
 	graph;
 	canvas;
+	textCanvas;
 	GL;
 	vertexBuffer;
 	indexBuffer;
@@ -13,6 +14,7 @@ class Canvas {
 	constructor(graph) {
 		this.graph = graph;
 		this.canvas = document.getElementById('graph');
+		this.textCanvas = document.getElementById('text-canvas');
 		this.canvas.parentNode.addEventListener('resize', this.resize, false);
 		this.resize();
 		this.GL = this.canvas.getContext("webgl") || this.canvas.getContext("experimental-webgl");
@@ -121,9 +123,23 @@ class Canvas {
 	resize = () => {
 		this.canvas.width = this.canvas.parentNode.getBoundingClientRect().width;
 		this.canvas.height = this.canvas.parentNode.getBoundingClientRect().height;
+		this.textCanvas.width = this.canvas.parentNode.getBoundingClientRect().width;
+		this.textCanvas.height = this.canvas.parentNode.getBoundingClientRect().height;
 		if (this.GL) {
 			this.GL.viewport(0, 0, this.canvas.width, this.canvas.height);
 		}
+	};
+	writeDate = (date) => {
+		const w = this.textCanvas.width;
+		const d = new Date(date);
+		const dateString = d.toISOString();
+		const ctx = this.textCanvas.getContext('2d');
+		ctx.clearRect(0, 0, this.textCanvas.width, this.textCanvas.height);
+		ctx.fillStyle = '#FF0000';
+		ctx.font = '16px serif';
+		const textWidth = ctx.measureText(dateString).width;
+		const pos = (w / 2) - (textWidth / 2);
+		ctx.fillText(dateString, pos, 16);
 	};
 	get width(){
 		return this.canvas.width;

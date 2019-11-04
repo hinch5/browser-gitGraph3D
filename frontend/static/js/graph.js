@@ -1,142 +1,75 @@
-class Rect3D {
-	x1;
-	y1;
-	width;
-	height;
-	centerX;
-	centerY;
-
-	constructor(x1, y1, width, height) {
-		this.x1 = x1;
-		this.y1 = y1;
-		this.width = width;
-		this.height = height;
-		this.centerX = this.x1 + this.width / 2;
-		this.centerY = this.y1 + this.height / 2;
+class GitUpdate {
+	vertex;
+	action;
+	constructor(vertex, action) {
+		this.vertex = vertex;
+		this.action = action;
 	}
-
-	split = (percent) => {
-		if (this.width >= this.height) {
-			const newWidth = this.width * percent;
-			return [
-				new Rect3D(this.x1, this.y1, newWidth, this.height),
-				new Rect3D(this.x1 + newWidth, this.y1, this.width - newWidth, this.height)
-			];
-		} else {
-			const newHeight = this.height * percent;
-			return [
-				new Rect3D(this.x1, this.y1, this.width, newHeight),
-				new Rect3D(this.x1, this.y1 + newHeight, this.width, this.height - newHeight)
-			];
-		}
-	};
-
-	get centerX() {
-		return this.centerX;
+	get vertex() {
+		return this.vertex;
 	}
-
-	get centerY() {
-		return this.centerY;
-	}
-
-	get width() {
-		return this.width;
-	}
-
-	get height() {
-		return this.height;
+	get action() {
+		return this.action;
 	}
 }
 
-class GitContributor {
+class GitContributor extends Vertex{
 	name;
-	centerX;
-	centerY;
-	centerZ;
-	radius;
-	coords;
-	indices;
-	colors;
-	skip;
-
-	constructor(name) {
+	updates;
+	dir;
+	edgeCoords;
+	edgeColors;
+	constructor(name, updates) {
+		super(0);
 		this.name = name;
+		this.updates = updates;
+		this.edgeCoords = [];
+		this.edgeColors = [];
+		this.color = [1.0, 0.0, 0.0, 1.0];
 	}
-	updCenter = (x, y, z, radius) => {
-		this.centerX = x;
-		this.centerY = y;
-		this.centerZ = z;
-		this.radius = radius;
+	drop = () => {
+		this.dir.contributor = null;
 	};
-	buildCoords = (skip) => {
-		this.coords = [];
-		this.indices = [];
-		this.colors = [];
-		let x, y, z, xz;
-		// this.centerX = this.boundRect.centerX;
-		// this.centerY = GRAPH_HEIGHT/2 - (this.level*(GRAPH_HEIGHT/height)) - (GRAPH_HEIGHT/(2*height));
-		// this.centerZ = this.boundRect.centerY;
-		this.skip = skip;
-		// const minRect = Math.min(this.boundRect.width, this.boundRect.height, GRAPH_HEIGHT/(2*height));
-		// if (SPHERE_RADIUS <= minRect) {
-		// 	this.radius = SPHERE_RADIUS;
-		// } else {
-		// 	this.radius = minRect;
-		// }
-		const sectorStep = 2 * Math.PI / SPHERE_SECTOR_COUNT, stackStep = Math.PI / SPHERE_STACK_COUNT;
-		for (let i = 0; i <= SPHERE_STACK_COUNT; i++) {
-			const stackAngle = Math.PI / 2 - i * stackStep;
-			xz = this.radius * Math.cos(stackAngle);
-			y = this.centerY + this.radius * Math.sin(stackAngle);
-			for (let j = 0; j <= SPHERE_SECTOR_COUNT; j++) {
-				const sectorAngle = j * sectorStep;
-
-				z = this.centerZ + xz * Math.sin(sectorAngle);
-				x = this.centerX + xz * Math.cos(sectorAngle);
-
-				this.coords.push(x, y, z, 1.0);
-				this.colors.push(0.0, 0.0, 1.0, 1.0);
+	buildEdges = () => {
+		for (let i = 0; i < this.updates.length; i++) {
+			this.edgeCoords = this.edgeCoords.concat(this.coords.slice(this.coords.length-4));
+			this.edgeCoords = this.edgeCoords.concat(this.updates[i].vertex.coords.slice(this.updates[i].vertex.coords.length-4));
+			if (this.updates[i].action === 0) {
+				this.edgeColors = this.edgeColors.concat([0.0, 1.0, 0.0, 1.0]);
+			} else if (this.updates[i].action === 1) {
+				this.edgeColors = this.edgeColors.concat([1.0, 0.0, 0.0, 1.0]);
+			} else {
+				this.edgeColors = this.edgeColors.concat([0.0, 0.0, 1.0, 1.0]);
 			}
 		}
-		for (let i = 0; i < SPHERE_STACK_COUNT; i++) {
-			let k1 = i * (SPHERE_SECTOR_COUNT + 1);
-			let k2 = k1 + SPHERE_SECTOR_COUNT + 1;
-			for (let j = 0; j < SPHERE_SECTOR_COUNT; j++, k1++, k2++) {
-				if (i !== 0) {
-					this.indices.push(this.skip + k1, this.skip + k2, this.skip + k1 + 1);
-				}
-				if (i !== (SPHERE_STACK_COUNT - 1)) {
-					this.indices.push(this.skip + k1 + 1, this.skip + k2, this.skip + k2 + 1);
-				}
-			}
-		}
-		this.coords.push(this.centerX, this.centerY, this.centerZ, 1.0);
-		this.colors.push(1.0, 1.0, 0.0, 1.0)
 	};
+	get name() {
+		return this.name;
+	}
+	get edgeCoords() {
+		return this.edgeCoords;
+	}
+	get edgeColors() {
+		return this.edgeColors;
+	}
+	set dir(dir) {
+		this.drop();
+		this.dir = dir;
+	}
 }
 
-class GitObject {
+class GitObject extends Vertex{
 	isDir;
 	children;
 	size;
-	level;
-	parent;
-	boundRect;
-	centerX;
-	centerY;
-	centerZ;
-	radius;
 	path;
-	coords;
-	indices;
-	colors;
-	skip;
+	contributor;
 
 	constructor(path, isDir, level, parent) {
+		super(level);
 		this.path = path;
 		this.isDir = isDir;
 		this.children = [];
-		this.level = level;
 		this.parent = parent;
 		this.size = 1;
 	}
@@ -176,97 +109,16 @@ class GitObject {
 	addSize = (a) => {
 		this.size += a;
 	};
-	buildSphere = (height, skip) => {
-		this.coords = [];
-		this.indices = [];
-		this.colors = [];
-		let x, y, z, xz;
-		this.centerX = this.boundRect.centerX;
-		this.centerY = GRAPH_HEIGHT/2 - (this.level*(GRAPH_HEIGHT/height)) - (GRAPH_HEIGHT/(2*height));
-		this.centerZ = this.boundRect.centerY;
-		this.skip = skip;
-		const minRect = Math.min(this.boundRect.width, this.boundRect.height, GRAPH_HEIGHT/(2*height));
-		if (SPHERE_RADIUS <= minRect) {
-			this.radius = SPHERE_RADIUS;
-		} else {
-			this.radius = minRect;
-		}
-		const sectorStep = 2 * Math.PI / SPHERE_SECTOR_COUNT, stackStep = Math.PI / SPHERE_STACK_COUNT;
-		for (let i = 0; i <= SPHERE_STACK_COUNT; i++) {
-			const stackAngle = Math.PI / 2 - i * stackStep;
-			xz = this.radius * Math.cos(stackAngle);
-			y = this.centerY + this.radius * Math.sin(stackAngle);
-			for (let j = 0; j <= SPHERE_SECTOR_COUNT; j++) {
-				const sectorAngle = j * sectorStep;
-				
-				z = this.centerZ + xz * Math.sin(sectorAngle);
-				x = this.centerX + xz * Math.cos(sectorAngle);
-
-				this.coords.push(x, y, z, 1.0);
-				this.colors.push(0.0, 1.0, 0.0, 1.0);
-			}
-		}
-		for (let i = 0; i < SPHERE_STACK_COUNT; i++) {
-			let k1 = i * (SPHERE_SECTOR_COUNT + 1);
-			let k2 = k1 + SPHERE_SECTOR_COUNT + 1;
-			for (let j = 0; j < SPHERE_SECTOR_COUNT; j++, k1++, k2++) {
-				if (i !== 0) {
-					this.indices.push(skip + k1, skip + k2, skip + k1 + 1);
-				}
-				if (i !== (SPHERE_STACK_COUNT - 1)) {
-					this.indices.push(skip + k1 + 1, skip + k2, skip + k2 + 1);
-				}
-			}
-		}
-		this.coords.push(this.centerX, this.centerY, this.centerZ, 1.0);
-		this.colors.push(1.0, 0.0, 0.0, 1.0)
+	haveContributor = () => {
+		return this.contributor !== null && this.contributor !== undefined;
 	};
-	equals = (vertex) => {
-		if (this.path.length !== vertex.path.length) {
-			return false;
-		}
-		for (let i = 0; i < this.path.length; i++) {
-			if (this.path[i] !== vertex.path[i]) {
-				return false;
-			}
-		}
-		return true;
-	};
-
-	set boundRect(rect) {
-		this.boundRect = rect;
-	}
-
-	get boundRect() {
-		return this.boundRect;
-	}
 
 	get children() {
 		return this.children;
 	}
 
-	get level() {
-		return this.level;
-	}
-
 	get size() {
 		return this.size;
-	}
-
-	get coords() {
-		return this.coords;
-	}
-
-	get indices() {
-		return this.indices;
-	}
-
-	get colors() {
-		return this.colors;
-	}
-
-	get parent() {
-		return this.parent;
 	}
 
 	get path() {
@@ -276,9 +128,13 @@ class GitObject {
 	get isDir() {
 		return this.isDir;
 	}
-	
-	get skip() {
-		return this.skip;
+
+	get contributor() {
+		return this.contributor;
+	}
+
+	set contributor(contributor) {
+		this.contributor = contributor;
 	}
 }
 
@@ -298,7 +154,7 @@ class Graph {
 		this.coords = [];
 		this.indices = [];
 		this.colors = [];
-		this.contributors = new Map();
+		this.contributors = [];
 		this.addElement(new GitObject(['sos', 'h', 'sos.json'], false));
 		this.addElement(new GitObject(['zhizn'], true));
 		this.addElement(new GitObject(['zhizn', 'v.json'], false));
@@ -310,7 +166,6 @@ class Graph {
 		this.addElement(new GitObject(['zhizn', 'help.md'], false));
 		this.addElement(new GitObject(['zhizn', 'smert', 'rip.js']), false);
 		this.splitSpace();
-		// console.log(this);
 	};
 
 	addElement = (element) => {
@@ -390,8 +245,19 @@ class Graph {
 		while (stack.length !== 0) {
 			const vertexSet = stack.pop();
 			if (vertexSet[0].length === 1) {
-				vertexSet[0][0].boundRect = vertexSet[1];
-				stack.push([vertexSet[0][0].children.slice(), vertexSet[1]]);
+				if (vertexSet[0][0].haveContributor()) {
+					const rectSplitted = vertexSet[1].split(0.5);
+					vertexSet[0][0].boundRect = rectSplitted[0];
+					vertexSet[0][0].contributor.boundRect = rectSplitted[1];
+					if (vertexSet[0][0].children.length !== 0) {
+						stack.push([vertexSet[0][0].children.slice(), vertexSet[1]]);
+					}
+				} else {
+					vertexSet[0][0].boundRect = vertexSet[1];
+					if (vertexSet[0][0].children.length !== 0) {
+						stack.push([vertexSet[0][0].children.slice(), vertexSet[1]]);
+					}
+				}
 			} else {
 				let fullSize = 0, firstSet = 0, firstInd = 0;
 				for (let i = 0; i < vertexSet[0].length; i++) {
@@ -407,8 +273,8 @@ class Graph {
 							firstInd--;
 						}
 						const firstSet = vertexSet[0].splice(firstInd, vertexSet[0].length - firstInd);
-						const rectSpitted = vertexSet[1].split(percent);
-						stack.push([firstSet, rectSpitted[0]], [vertexSet[0], rectSpitted[1]]);
+						const rectSplitted = vertexSet[1].split(percent);
+						stack.push([firstSet, rectSplitted[0]], [vertexSet[0], rectSplitted[1]]);
 						break
 					}
 				}
@@ -436,6 +302,7 @@ class Graph {
 				if (vertexSet[1] !== null) {
 					this.edgeIndices.push(skip + VERTEX_SIZE , vertexSet[1].skip + VERTEX_SIZE);
 				}
+
 				skip += VERTEX_SIZE + SKIP_COORDS;
 			}
 		}
