@@ -25,28 +25,35 @@ class Canvas {
 			this.GL.clearColor(0.09, 0.09, 0.09, 1.0);
 			this.GL.enable(this.GL.DEPTH_TEST);
 			this.GL.depthFunc(this.GL.LEQUAL);
+			this.GL.enable(this.GL.BLEND);
+			this.GL.blendFunc(this.GL.SRC_ALPHA, this.GL.ONE_MINUS_SRC_ALPHA);
 			this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
 		}
 		this.initShaders('vertex-shader', 'fragment-shader');
 		this.initBuffers();
 	}
 
-	draw = (model, view) => {
+	draw = (model, view, delta) => {
 		this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
 		this.modelUniform = this.GL.getUniformLocation(this.shaderProgram, 'model');
 		this.viewUniform = this.GL.getUniformLocation(this.shaderProgram, 'view');
 		this.GL.uniformMatrix4fv(this.modelUniform, false, model);
 		this.GL.uniformMatrix4fv(this.viewUniform, false, view);
+		
+		this.graph.iterate(delta);
+		this.initBuffers();
+		
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
 		this.GL.vertexAttribPointer(this.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
 		this.GL.vertexAttribPointer(this.colorAttrib, 4, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-		this.GL.drawArrays(this.GL.TRIANGLES, 0, 3);
 		this.GL.drawElements(this.GL.TRIANGLES, this.graph.indices.length, this.GL.UNSIGNED_SHORT, 0);
 
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
 		this.GL.drawElements(this.GL.LINES, this.graph.edgeIndices.length, this.GL.UNSIGNED_SHORT, 0);
+		
+		this.GL.drawArrays(this.GL.LINES, this.graph.coords.length/4, this.graph.edgeCoords.length/4);
 	};
 
 	initShaders = (vertex, fragment) => {
@@ -106,19 +113,19 @@ class Canvas {
 	initBuffers = () => {
 		this.vertexBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
-		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.coords), this.GL.STATIC_DRAW);
+		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.coords.concat(this.graph.edgeCoords)), this.GL.DYNAMIC_DRAW);
 
 		this.indexBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.graph.indices), this.GL.STATIC_DRAW);
+		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.graph.indices), this.GL.DYNAMIC_DRAW);
 		
 		this.indexBufferEdges = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
-		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.graph.edgeIndices), this.GL.STATIC_DRAW);
+		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.graph.edgeIndices), this.GL.DYNAMIC_DRAW);
 
 		this.colorBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
-		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.colors), this.GL.STATIC_DRAW);
+		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.colors.concat(this.graph.edgeColors)), this.GL.DYNAMIC_DRAW);
 	};
 	resize = () => {
 		this.canvas.width = this.canvas.parentNode.getBoundingClientRect().width;

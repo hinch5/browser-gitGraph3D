@@ -1,263 +1,315 @@
-class GitUpdate {
-	vertex;
-	action;
-	constructor(vertex, action) {
-		this.vertex = vertex;
+class UpdateData {
+	name;  // string
+	dir;   // path array
+	startDate;   // start time(from 0)
+	duration;   // integer
+	expireDate;
+	updates;   // UpdateFile[]
+	constructor(name, dir, startDate, duration, updates) {
+		this.name = name;
+		this.dir = dir;
+		this.startDate = startDate;
+		this.duration = duration;
+		this.expireDate = startDate + duration;
+		this.updates = updates;
+	}
+	get name() {
+		return this.name;
+	}
+	get dir() {
+		return this.dir;
+	}
+	get expireDate() {
+		return this.expireDate;
+	}
+	get updates() {
+		return this.updates;
+	}
+}
+
+class UpdateFile {
+	vertexSet;  // vertex set
+	file;    // file array path
+	isDir;   // isDir flag
+	action;  // action (0 - create, 1 - update, 2 - delete)
+	constructor(file, isDir, action) {
+		this.file = file;
+		this.isDir = isDir;
 		this.action = action;
 	}
-	get vertex() {
-		return this.vertex;
+	get file() {
+		return this.file;
+	}
+	get isDir() {
+		return this.isDir;
 	}
 	get action() {
 		return this.action;
 	}
-}
-
-class GitContributor extends Vertex{
-	name;
-	updates;
-	dir;
-	edgeCoords;
-	edgeColors;
-	constructor(name, updates) {
-		super(0);
-		this.name = name;
-		this.updates = updates;
-		this.edgeCoords = [];
-		this.edgeColors = [];
-		this.color = [1.0, 0.0, 0.0, 1.0];
+	get vertexSet() {
+		return this.vertexSet;
 	}
-	drop = () => {
-		this.dir.contributor = null;
-	};
-	buildEdges = () => {
-		for (let i = 0; i < this.updates.length; i++) {
-			this.edgeCoords = this.edgeCoords.concat(this.coords.slice(this.coords.length-4));
-			this.edgeCoords = this.edgeCoords.concat(this.updates[i].vertex.coords.slice(this.updates[i].vertex.coords.length-4));
-			if (this.updates[i].action === 0) {
-				this.edgeColors = this.edgeColors.concat([0.0, 1.0, 0.0, 1.0]);
-			} else if (this.updates[i].action === 1) {
-				this.edgeColors = this.edgeColors.concat([1.0, 0.0, 0.0, 1.0]);
-			} else {
-				this.edgeColors = this.edgeColors.concat([0.0, 0.0, 1.0, 1.0]);
-			}
-		}
-	};
-	get name() {
-		return this.name;
-	}
-	get edgeCoords() {
-		return this.edgeCoords;
-	}
-	get edgeColors() {
-		return this.edgeColors;
-	}
-	set dir(dir) {
-		this.drop();
-		this.dir = dir;
-	}
-}
-
-class GitObject extends Vertex{
-	isDir;
-	children;
-	size;
-	path;
-	contributor;
-
-	constructor(path, isDir, level, parent) {
-		super(level);
-		this.path = path;
-		this.isDir = isDir;
-		this.children = [];
-		this.parent = parent;
-		this.size = 1;
-	}
-
-	addChild = (child) => {
-		let insertInd = 0;
-		for (let i = 0; i < this.children.length; i++) {
-			if (this.children[i].size > child.size) {
-				insertInd = i;
-			}
-		}
-		this.children.splice(insertInd, 0, child);
-		let p = this;
-		for (; p.parent !== null; p = p.parent) {
-			p.addSize(child.size);
-			p.children.sort((a, b) => {
-				if (a.size < b.size) {
-					return -1;
-				} else if (a.size === b.size) {
-					return 0;
-				} else {
-					return 1;
-				}
-			});
-		}
-		p.addSize(child.size);
-		p.children.sort((a, b) => {
-			if (a.size < b.size) {
-				return -1;
-			} else if (a.size === b.size) {
-				return 0;
-			} else {
-				return 1;
-			}
-		});
-	};
-	addSize = (a) => {
-		this.size += a;
-	};
-	haveContributor = () => {
-		return this.contributor !== null && this.contributor !== undefined;
-	};
-
-	get children() {
-		return this.children;
-	}
-
-	get size() {
-		return this.size;
-	}
-
-	get path() {
-		return this.path;
-	}
-
-	get isDir() {
-		return this.isDir;
-	}
-
-	get contributor() {
-		return this.contributor;
-	}
-
-	set contributor(contributor) {
-		this.contributor = contributor;
+	set vertexSet(vertexSet) {
+		this.vertexSet = vertexSet;
 	}
 }
 
 class Graph {
 	height;
+	heightMap;
 	coords;
 	indices;
 	colors;
+	edgeCoords;
+	edgeColors;
 	root;
 	edgeIndices;
 	contributors;
+	currentContributor;
+	updates;
+	now;
+	updateIndex;
+	orderedVertices;
 
-	constructor() {
+	constructor(updates) {
 		this.root = new GitObject([], true, 0, null);
 		this.root.boundRect = new Rect3D(-GRAPH_WIDTH/2, -GRAPH_DEPTH/2, GRAPH_WIDTH, GRAPH_DEPTH);
 		this.height = 1;
+		this.heightMap = new Map();
+		this.heightMap.set(1, 1);
 		this.coords = [];
 		this.indices = [];
 		this.colors = [];
+		this.edgeCoords = [];
+		this.edgeColors = [];
+		this.edgeIndices = [];
 		this.contributors = [];
-		this.addElement(new GitObject(['sos', 'h', 'sos.json'], false));
-		this.addElement(new GitObject(['zhizn'], true));
-		this.addElement(new GitObject(['zhizn', 'v.json'], false));
-		this.addElement(new GitObject(['zhizn', 'm.yml'], false));
-		this.addElement(new GitObject(['gold', 'algebra.lee'], false));
-		this.addElement(new GitObject(['zhizn', 'smert.cpp'], false));
-		this.addElement(new GitObject(['file.txt']), false);
-		this.addElement(new GitObject(['zhizn', 'smert', 'rip.py']), false);
-		this.addElement(new GitObject(['zhizn', 'help.md'], false));
-		this.addElement(new GitObject(['zhizn', 'smert', 'rip.js']), false);
-		this.splitSpace();
+		this.orderedVertices = [];
+		this.updates = [new UpdateData('', [], 0, 1000, [])].concat(updates);  // init update
+		this.now = 1;
+		this.updateIndex = 0;
+		this.splitSpace(1000);
 	};
 
-	addElement = (element) => {
-		const res = this.tryAddElement(this.root, element, 0);
-		this.splitSpace();
-		return res;
-	};
-	tryAddElement = (parent, element, pathInd) => {
-		for (let i = 0; i < parent.children.length; i++) {
-			if (parent.children[i].path[pathInd] === element.path[pathInd]) {
-				if (!parent.children[i].isDir) {
-					console.log('smert not folder');
-					return null;
+	startUpdate = () => {
+		if (this.updates[this.updateIndex].name !== '') {
+			let contributorInd = null;
+			for (let i = 0; i < this.contributors.length; i++) {
+				if (this.contributors[i].name === this.updates[this.updateIndex].name) {
+					contributorInd = i;
+					break;
 				}
-				if (pathInd + 1 !== element.path.length) {
-					return this.tryAddElement(parent.children[i], element, pathInd + 1);
-				} else {
-					console.log('smert');
-					return parent;
+			}
+			if (contributorInd === null) {
+				contributorInd = this.contributors.length;
+				this.contributors.push(new GitContributor(this.updates[this.updateIndex].name))
+			}
+			this.currentContributor = this.contributors[contributorInd];
+			if (this.currentContributor.dir) {
+				this.currentContributor.dir.contributor = null;
+			}
+			const dir = this.findDir(this.root, this.updates[this.updateIndex].dir, 0);
+			this.currentContributor.dir = dir;
+			this.currentContributor.level = dir.level;
+			dir.contributor = this.currentContributor;
+			const updateFiles = this.updates[this.updateIndex].updates;
+			let haveDelete = false;
+			for (let i = 0; i < updateFiles.length; i++) {
+				if (updateFiles[i].action === 0) {
+					updateFiles[i].vertexSet = this.addElement(dir, updateFiles[i].file, updateFiles[i].isDir, dir.path.length);
+				} else if (updateFiles[i].action === 1) {
+					updateFiles[i].vertexSet = [this.findDir(dir, updateFiles[i].file, dir.path.length)];
+				} else if (updateFiles[i].action === 2) {
+					if (!haveDelete) {
+						this.updates[this.updateIndex].duration/=2;
+						this.updates[this.updateIndex].expireDate -= this.updates[this.updateIndex].duration;
+						this.updates.splice(this.updateIndex+1, 0,
+							new UpdateData('', [],
+								this.updates[this.updateIndex].expireDate,
+								this.updates[this.updateIndex].duration,
+								[]));
+						haveDelete = true;
+					}
+					updateFiles[i].vertexSet = this.removeElement(dir, updateFiles[i].file, dir.path.length);
+				}
+			}
+			this.currentContributor.updates = updateFiles;
+		}
+	};
+	finishUpdate = () => {
+		for (let i = 0; i < this.contributors.length; i++) {
+			this.contributors[i].resetAcceleration();
+			this.contributors[i].resetTransparencySpeed();
+			this.contributors[i].resetRemoveSpeed();
+		}
+		const stack = [[this.root]];
+		while (stack.length !== 0) {
+			const vertexSet = stack.pop();
+			for (let i = 0; i < vertexSet.length; i++) {
+				vertexSet[i].resetAcceleration();
+				vertexSet[i].resetTransparencySpeed();
+				vertexSet[i].resetRemoveSpeed();
+				if (vertexSet[i].children.length !== 0) {
+					stack.push(vertexSet[i].children);
 				}
 			}
 		}
-		let p = parent;
-		for (let i = pathInd; i < element.path.length - 1; i++) {
-			const child = new GitObject(element.path.slice(0, i + 1), true, p.level + 1, p);
-			p.addChild(child);
-			p = child;
-		}
-		p.addChild(new GitObject(element.path, element.isDir, p.level + 1, p));
-		if (p.level + 2 > this.height) {
-			this.height = p.level + 2;
-		}
-		return p;
-	};
-	findElement = (parent, element, pathInd) => {
-		for (let i = 0; i < parent.children.length; i++) {
-			if (parent.children[i].path[pathInd] === element.path[pathInd]) {
-				if (!parent.children[i].isDir) {
-					console.log('smert not folder');
-				}
-				if (pathInd === element.path.length - 1) {
-					return parent.parent;
-				}
-				return this.findElement(parent.children[i], element, pathInd + 1)
-			}
-		}
-		return null;
-	};
-	updElements = (author, elements) => {
-		let contributor = null;
-		if (this.contributors.has(author)) {
-			contributor = this.contributors.get(author);
-		} else {
-			contributor = new GitContributor(author);
-		}
-		const updates = new Map();
-		for (let i = 0; i < elements.length; i++) {
-			let p = this.findElement(this.root, elements[i], 0);
-			if (p !== null) {
-				p = this.addElement(elements[i]);
-			}
-			for (let j = 0; j < p.children.length; j++) {
-				if (p.children[j].path[p.children[j].path.length - 1] === elements[i].path[elements[i].path.length-1]) {
-					if (updates.has(p.path.join('/'))) {
-						updates.get(p.path.join('/').push(p.children[j]));
-					} else {
-						updates.set(p.path.join('/'), p.children[j]);
+		if (this.updates[this.updateIndex].name !== '') {
+			const updateFiles = this.updates[this.updateIndex].updates;
+			for (let i = 0; i < updateFiles.length; i++) {
+				if (updateFiles[i].action === 2) {
+					for (let j = 0; j < updateFiles[i].vertexSet.length; j++) {
+						if (updateFiles[i].vertexSet[j].parent) {
+							updateFiles[i].vertexSet[j].parent.removeChild(updateFiles[i].vertexSet[j]);
+							const newV = this.heightMap.get(updateFiles[i].vertexSet[j].level+1)-1;
+							this.heightMap.set(updateFiles[i].vertexSet[j].level+1, newV);
+						}
 					}
 				}
 			}
+			this.calcHeight();
 		}
-
-		// draw updates
+		this.currentContributor = null;
+		this.edgeCoords = [];
+		this.edgeColors = [];
 	};
-	splitSpace = () => {
-		const stack = [[[this.root], this.root.boundRect]];
+	iterate = (delta) => {
+		if (this.updateIndex < this.updates.length) {
+			if (this.now <= this.updates[this.updateIndex].startDate) {
+				if (this.now + delta >= this.updates[this.updateIndex].startDate) {
+					this.startUpdate();
+					this.splitSpace(this.updates[this.updateIndex].duration);
+					this.buildCoords(Math.min(this.now + delta - this.updates[this.updateIndex].startDate,
+						this.updates[this.updateIndex].expireDate - this.updates[this.updateIndex].startDate));
+				}
+			} else {
+				this.buildCoords(Math.min(this.now + delta - this.updates[this.updateIndex].startDate,
+					this.updates[this.updateIndex].expireDate - this.updates[this.updateIndex].startDate));  // from operation start
+			}
+			if (this.now + delta >= this.updates[this.updateIndex].expireDate) {
+				this.finishUpdate();
+				this.updateIndex++;
+				this.iterate(delta);
+			}
+			this.now += delta;
+		} else {
+			this.currentContributor = null;
+			this.edgeCoords = [];
+			this.edgeColors = [];
+		}
+	};
+	findDir = (parent, path, pathInd) => {
+		for (let i = 0; i < parent.children.length; i++) {
+			if (parent.children[i].path[pathInd] === path[pathInd]) {
+				return this.findDir(parent.children[i], path, pathInd + 1);
+			}
+		}
+		return parent;
+	};
+	addElement = (parent, path, isDir, pathInd) => {
+		const res = [];
+		let p = this.findDir(parent, path, pathInd);
+		for (let i = p.path.length; i < path.length - 1; i++) {
+			const child = new GitObject(path.slice(0, i + 1), true, p.level + 1, p);
+			if (this.heightMap.has(p.level+2)) {
+				const newV = this.heightMap.get(p.level+2)+1;
+				this.heightMap.set(p.level+2, newV);
+			} else {
+				this.heightMap.set(p.level+2, 1);
+			}
+			p.addChild(child);
+			res.push(child);
+			p = child;
+		}
+		const lastChild = new GitObject(path, isDir, p.level + 1, p);
+		p.addChild(lastChild);
+		res.push(lastChild);
+		if (this.heightMap.has(p.level+2)) {
+			const newV = this.heightMap.get(p.level+2)+1;
+			this.heightMap.set(p.level+2, newV);
+		} else {
+			this.heightMap.set(p.level+2, 1);
+		}
+		this.calcHeight();
+		return res;
+	};
+	removeElement = (parent, path, pathInd) => {
+		const res = [];
+		for (let i = pathInd; i < path.length; i++) {
+			let found = false;
+			for (let j = 0; j < parent.children.length; j++) {
+				if (parent.children[j].path[i] === path[i]) {
+					parent = parent.children[j];
+					found = true;
+					break;
+				}
+			}
+			if (!found) {   // not in graph, delete is useless
+				return res;
+			}
+		}
+		res.push(parent);
+		parent.removing = true;
+		const stack = [parent];
+		while (stack.length !== 0) {
+			const vertex = stack.pop();
+			for (let i = 0; i < vertex.children.length; i++) {
+				if (vertex.children[i].children.length !== 0) {
+					stack.push(vertex.children[i]);
+				}
+				vertex.children[i].removing = true;
+				res.push(vertex.children[i]);
+			}
+		}
+		return res;
+	};
+	splitSpace = (duration) => {
+		this.root.boundRect = new Rect3D(-GRAPH_WIDTH/2, -GRAPH_DEPTH/2, GRAPH_WIDTH, GRAPH_DEPTH);
+		this.edgeIndices = [];
+		this.orderedVertices = [];
+		let skip = 0;
+		const stack = [[[this.root], this.root.boundRect, null]];
 		while (stack.length !== 0) {
 			const vertexSet = stack.pop();
 			if (vertexSet[0].length === 1) {
 				if (vertexSet[0][0].haveContributor()) {
 					const rectSplitted = vertexSet[1].split(0.5);
-					vertexSet[0][0].boundRect = rectSplitted[0];
-					vertexSet[0][0].contributor.boundRect = rectSplitted[1];
-					if (vertexSet[0][0].children.length !== 0) {
-						stack.push([vertexSet[0][0].children.slice(), vertexSet[1]]);
+					if (vertexSet[0][0].contributor.coords) {
+						vertexSet[0][0].contributor.calcAcceleration(this.height, skip, rectSplitted[1], duration);
+					} else {
+						vertexSet[0][0].contributor.boundRect = rectSplitted[1];
+						vertexSet[0][0].contributor.buildSphere(this.height, skip);
 					}
+					skip += VERTEX_SIZE + SKIP_COORDS;
+					if (!vertexSet[0][0].coords) {
+						vertexSet[0][0].boundRect = rectSplitted[0];
+						vertexSet[0][0].calcTransparencySpeed(this.height, skip, duration);
+					} else {
+						if (vertexSet[0][0].removing) {
+							vertexSet[0][0].calcRemoveSpeed(skip, duration);
+						}
+						vertexSet[0][0].calcAcceleration(this.height, skip, rectSplitted[0], duration);
+					}
+					this.orderedVertices.push(vertexSet[0][0].contributor);
 				} else {
-					vertexSet[0][0].boundRect = vertexSet[1];
-					if (vertexSet[0][0].children.length !== 0) {
-						stack.push([vertexSet[0][0].children.slice(), vertexSet[1]]);
+					if (!vertexSet[0][0].coords) {
+						vertexSet[0][0].boundRect = vertexSet[1];
+						vertexSet[0][0].calcTransparencySpeed(this.height, skip, duration);
+					} else {
+						if (vertexSet[0][0].removing) {
+							vertexSet[0][0].calcRemoveSpeed(skip, duration);
+						}
+						vertexSet[0][0].calcAcceleration(this.height, skip, vertexSet[1], duration);
 					}
 				}
+				if (vertexSet[0][0].children.length !== 0) {
+					stack.push([vertexSet[0][0].children.slice(), vertexSet[1], vertexSet[0][0]]);
+				}
+				if (vertexSet[2] !== null) {
+					this.edgeIndices.push(skip + VERTEX_SIZE, vertexSet[2].skip + VERTEX_SIZE);
+				}
+				this.orderedVertices.push(vertexSet[0][0]);
+				skip += VERTEX_SIZE + SKIP_COORDS;
 			} else {
 				let fullSize = 0, firstSet = 0, firstInd = 0;
 				for (let i = 0; i < vertexSet[0].length; i++) {
@@ -274,38 +326,37 @@ class Graph {
 						}
 						const firstSet = vertexSet[0].splice(firstInd, vertexSet[0].length - firstInd);
 						const rectSplitted = vertexSet[1].split(percent);
-						stack.push([firstSet, rectSplitted[0]], [vertexSet[0], rectSplitted[1]]);
+						stack.push([firstSet, rectSplitted[0], vertexSet[2]], [vertexSet[0], rectSplitted[1], vertexSet[2]]);
 						break
 					}
 				}
 			}
 		}
-		this.buildCoords();
 	};
-	buildCoords = () => {
+	buildCoords = (delta) => {
 		this.coords = [];
 		this.colors = [];
 		this.indices = [];
-		this.edgeIndices = [];
-		let skip = 0;
-		const stack = [[[this.root], null]];
-		while (stack.length !== 0) {
-			const vertexSet = stack.pop();
-			for (let i = 0; i < vertexSet[0].length; i++) {
-				vertexSet[0][i].buildSphere(this.height, skip);
-				this.coords = this.coords.concat(vertexSet[0][i].coords);
-				this.indices = this.indices.concat(vertexSet[0][i].indices);
-				this.colors = this.colors.concat(vertexSet[0][i].colors);
-				if (vertexSet[0][i].children.length !== 0) {
-					stack.push([vertexSet[0][i].children, vertexSet[0][i]]);
-				}
-				if (vertexSet[1] !== null) {
-					this.edgeIndices.push(skip + VERTEX_SIZE , vertexSet[1].skip + VERTEX_SIZE);
-				}
-
-				skip += VERTEX_SIZE + SKIP_COORDS;
-			}
+		for (let i = 0; i < this.orderedVertices.length; i++) {
+			this.orderedVertices[i].move(delta);
+			this.coords = this.coords.concat(this.orderedVertices[i].coords);
+			this.indices = this.indices.concat(this.orderedVertices[i].indices);
+			this.colors = this.colors.concat(this.orderedVertices[i].colors);
 		}
+		if (this.currentContributor) {
+			this.currentContributor.buildEdges();
+			this.edgeCoords = this.currentContributor.edgeCoords;
+			this.edgeColors = this.currentContributor.edgeColors;
+		}
+	};
+	calcHeight = () => {
+		let maxHeight = 1;
+		this.heightMap.forEach((v, k) => {
+			if (v !== 0 && k > maxHeight) {
+				maxHeight = k;
+			}
+		});
+		this.height = maxHeight;
 	};
 
 	get coords() {
@@ -322,5 +373,13 @@ class Graph {
 
 	get colors() {
 		return this.colors;
+	}
+
+	get edgeCoords() {
+		return this.edgeCoords;
+	}
+	
+	get edgeColors() {
+		return this.edgeColors;
 	}
 }

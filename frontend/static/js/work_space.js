@@ -22,7 +22,7 @@ const SKIP_COORDS = 1;
 const GRAPH_WIDTH = 1.4;
 const GRAPH_HEIGHT = 1.4;
 const GRAPH_DEPTH = 1.4;
-const SPEED = 3600*24;
+const SPEED = 3600 * 24;
 
 class WorkSpace {
 	angles;
@@ -43,10 +43,35 @@ class WorkSpace {
 		window.addEventListener('keydown', this.transformation);
 
 		this.loader = new Loader();
-		this.graph = new Graph();
+		this.graph = new Graph([
+			new UpdateData('test', [], 1000, 1000, [new UpdateFile(['json', 'statham.json'], false, 0)]),
+			new UpdateData('test', ['json'], 2000, 1000, [new UpdateFile(['json', 'stat.json'], false, 0)]),
+			new UpdateData('test', ['json'], 3000, 1000, [new UpdateFile(['json', 'stat.json'], false, 1), new UpdateFile(['json', 'statham.json'], false, 1)]),
+			new UpdateData('test2', [], 4000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 0),
+				new UpdateFile(['csv', 'b.csv'], false, 0)
+			]),
+			new UpdateData('test2', ['csv'], 5000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 2)]),
+			new UpdateData('test', [], 6000, 1000, [new UpdateFile(['csv'], true, 2), new UpdateFile(['csv', 'b.csv'], false, 2)],),
+			new UpdateData('test2', ['json'], 7000, 2000, [
+				new UpdateFile(['json', 'test.json'], false, 0),
+				new UpdateFile(['json', 'statham.json'], false, 1),
+				new UpdateFile(['json', 'config'], true, 0),
+				new UpdateFile(['json', 'stat.json'], false, 2),
+				new UpdateFile(['json', 'a.json'], false, 0)
+			]),
+			new UpdateData('test2', [], 9000, 2000, [
+				new UpdateFile(['js'], true, 0),
+				new UpdateFile(['js', 'index.js'], false, 0),
+				new UpdateFile(['js', 'vertex.js'], false, 0),
+				new UpdateFile(['json', 'config', 'config.json'], false, 0),
+				new UpdateFile(['js', 'canvas.js'], false, 0),
+				new UpdateFile(['js', 'graph.js'], false, 0)
+			]),
+			new UpdateData('test2', ['json', 'config'], 11000, 2000, [new UpdateFile(['json', 'config', 'config.json'], false, 2)])
+		]);
 
 		this.canvas = new Canvas(this.graph);
-		this.aspectRatioBalance = this.canvas.height/this.canvas.width;
+		this.aspectRatioBalance = this.canvas.height / this.canvas.width;
 		this.drawScene();
 	}
 
@@ -88,10 +113,10 @@ class WorkSpace {
 			delta = 0;
 		} else {
 			const t = Date.now();
-			delta = t- this.now;
+			delta = t - this.now;
 			this.now = t;
 		}
-		this.begin += SPEED*delta;
+		this.begin += SPEED * delta;
 		let model = glMatrix.mat4.create(), view = glMatrix.mat4.create();
 		glMatrix.mat4.fromXRotation(model, glMatrix.glMatrix.toRadian(this.angles[0]));
 		glMatrix.mat4.rotateY(model, model, glMatrix.glMatrix.toRadian(this.angles[1]));
@@ -99,7 +124,7 @@ class WorkSpace {
 		glMatrix.mat4.fromScaling(view, glMatrix.vec3.fromValues(this.aspectRatioBalance * (1 + this.scale), 1 + this.scale, 1 + this.scale));
 		glMatrix.mat4.translate(view, view, glMatrix.vec3.fromValues(this.translate[0], this.translate[1], this.translate[2]));
 		this.canvas.writeDate(this.begin);
-		this.canvas.draw(model, view);
+		this.canvas.draw(model, view, delta);
 
 		setTimeout(this.drawScene, 10);
 	};
