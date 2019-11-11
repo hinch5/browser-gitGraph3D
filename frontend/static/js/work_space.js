@@ -117,14 +117,17 @@ class WorkSpace {
 			this.now = t;
 		}
 		this.begin += SPEED * delta;
-		let model = glMatrix.mat4.create(), view = glMatrix.mat4.create();
-		glMatrix.mat4.fromXRotation(model, glMatrix.glMatrix.toRadian(this.angles[0]));
+		let model = glMatrix.mat4.create(), view = glMatrix.mat4.create(), normalModel = glMatrix.mat4.create();
+		glMatrix.mat4.fromScaling(model, glMatrix.vec3.fromValues(this.aspectRatioBalance, 1, 1));
+		glMatrix.mat4.rotateX(model, model, glMatrix.glMatrix.toRadian(this.angles[0]));
 		glMatrix.mat4.rotateY(model, model, glMatrix.glMatrix.toRadian(this.angles[1]));
 		glMatrix.mat4.rotateZ(model, model, glMatrix.glMatrix.toRadian(this.angles[2]));
-		glMatrix.mat4.fromScaling(view, glMatrix.vec3.fromValues(this.aspectRatioBalance * (1 + this.scale), 1 + this.scale, 1 + this.scale));
-		glMatrix.mat4.translate(view, view, glMatrix.vec3.fromValues(this.translate[0], this.translate[1], this.translate[2]));
+		glMatrix.mat4.scale(model, model, glMatrix.vec3.fromValues(1 + this.scale, 1 + this.scale, 1 + this.scale));
+		glMatrix.mat4.fromTranslation(view, glMatrix.vec3.fromValues(this.translate[0], this.translate[1], this.translate[2]));
+		glMatrix.mat4.invert(normalModel, model);
+		glMatrix.mat4.transpose(normalModel, normalModel);
 		this.canvas.writeDate(this.begin);
-		this.canvas.draw(model, view, delta);
+		this.canvas.draw(model, view, normalModel, delta);
 
 		setTimeout(this.drawScene, 10);
 	};

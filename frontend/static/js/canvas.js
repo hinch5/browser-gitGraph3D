@@ -6,10 +6,15 @@ class Canvas {
 	vertexBuffer;
 	indexBuffer;
 	colorBuffer;
+	normalBuffer;
 	indexBufferEdges;
 	modelUniform;
 	viewUniform;
+	normalModelUniform;
 	shaderProgram;
+	vertexAttrib;
+	colorAttrib;
+	normalAttrib;
 
 	constructor(graph) {
 		this.graph = graph;
@@ -33,12 +38,14 @@ class Canvas {
 		this.initBuffers();
 	}
 
-	draw = (model, view, delta) => {
+	draw = (model, view, normalModel, delta) => {
 		this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
 		this.modelUniform = this.GL.getUniformLocation(this.shaderProgram, 'model');
 		this.viewUniform = this.GL.getUniformLocation(this.shaderProgram, 'view');
+		this.normalModelUniform = this.GL.getUniformLocation(this.shaderProgram, 'normalModel');
 		this.GL.uniformMatrix4fv(this.modelUniform, false, model);
 		this.GL.uniformMatrix4fv(this.viewUniform, false, view);
+		this.GL.uniformMatrix4fv(this.normalModelUniform, false, normalModel);
 		
 		this.graph.iterate(delta);
 		this.initBuffers();
@@ -47,6 +54,8 @@ class Canvas {
 		this.GL.vertexAttribPointer(this.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
 		this.GL.vertexAttribPointer(this.colorAttrib, 4, this.GL.FLOAT, true, 0, 0);
+		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.normalBuffer);
+		this.GL.vertexAttribPointer(this.normalAttrib, 3, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 		this.GL.drawElements(this.GL.TRIANGLES, this.graph.indices.length, this.GL.UNSIGNED_SHORT, 0);
 
@@ -75,6 +84,8 @@ class Canvas {
 		this.GL.enableVertexAttribArray(this.vertexAttrib);
 		this.colorAttrib = this.GL.getAttribLocation(this.shaderProgram, "color");
 		this.GL.enableVertexAttribArray(this.colorAttrib);
+		this.normalAttrib = this.GL.getAttribLocation(this.shaderProgram, "normal");
+		this.GL.enableVertexAttribArray(this.normalAttrib);
 	};
 	getShader = (gl, id) => {
 		let shaderScript, theSource, currentChild, shader;
@@ -90,7 +101,6 @@ class Canvas {
 			if (currentChild.nodeType === currentChild.TEXT_NODE) {
 				theSource += currentChild.textContent;
 			}
-
 			currentChild = currentChild.nextSibling;
 		}
 		if (shaderScript.type === 'x-shader/x-fragment') {
@@ -126,6 +136,10 @@ class Canvas {
 		this.colorBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
 		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.colors.concat(this.graph.edgeColors)), this.GL.DYNAMIC_DRAW);
+		
+		this.normalBuffer = this.GL.createBuffer();
+		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.normalBuffer);
+		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.normals.concat(this.graph.edgeNormals)), this.GL.DYNAMIC_DRAW);
 	};
 	resize = () => {
 		this.canvas.width = this.canvas.parentNode.getBoundingClientRect().width;

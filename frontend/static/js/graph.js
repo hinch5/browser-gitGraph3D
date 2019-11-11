@@ -13,15 +13,19 @@ class UpdateData {
 		this.expireDate = startDate + duration;
 		this.updates = updates;
 	}
+
 	get name() {
 		return this.name;
 	}
+
 	get dir() {
 		return this.dir;
 	}
+
 	get expireDate() {
 		return this.expireDate;
 	}
+
 	get updates() {
 		return this.updates;
 	}
@@ -37,18 +41,23 @@ class UpdateFile {
 		this.isDir = isDir;
 		this.action = action;
 	}
+
 	get file() {
 		return this.file;
 	}
+
 	get isDir() {
 		return this.isDir;
 	}
+
 	get action() {
 		return this.action;
 	}
+
 	get vertexSet() {
 		return this.vertexSet;
 	}
+
 	set vertexSet(vertexSet) {
 		this.vertexSet = vertexSet;
 	}
@@ -60,8 +69,11 @@ class Graph {
 	coords;
 	indices;
 	colors;
+	normals;
+	sphereNormal;
 	edgeCoords;
 	edgeColors;
+	edgeNormals;
 	root;
 	edgeIndices;
 	contributors;
@@ -73,22 +85,45 @@ class Graph {
 
 	constructor(updates) {
 		this.root = new GitObject([], true, 0, null);
-		this.root.boundRect = new Rect3D(-GRAPH_WIDTH/2, -GRAPH_DEPTH/2, GRAPH_WIDTH, GRAPH_DEPTH);
+		this.root.boundRect = new Rect3D(-GRAPH_WIDTH / 2, -GRAPH_DEPTH / 2, GRAPH_WIDTH, GRAPH_DEPTH);
 		this.height = 1;
 		this.heightMap = new Map();
 		this.heightMap.set(1, 1);
 		this.coords = [];
 		this.indices = [];
 		this.colors = [];
+		this.normals = [];
 		this.edgeCoords = [];
 		this.edgeColors = [];
+		this.edgeNormals = [];
 		this.edgeIndices = [];
 		this.contributors = [];
 		this.orderedVertices = [];
 		this.updates = [new UpdateData('', [], 0, 1000, [])].concat(updates);  // init update
 		this.now = 1;
 		this.updateIndex = 0;
+		this.buildNormals();
 		this.splitSpace(1000);
+	};
+
+	buildNormals = () => {
+		this.sphereNormal = [];
+		let x, y, z, xz;
+		const sectorStep = 2 * Math.PI / SPHERE_SECTOR_COUNT, stackStep = Math.PI / SPHERE_STACK_COUNT;
+		for (let i = 0; i <= SPHERE_STACK_COUNT; i++) {
+			const stackAngle = Math.PI / 2 - i * stackStep;
+			xz = Math.cos(stackAngle);
+			y = Math.sin(stackAngle);
+			for (let j = 0; j <= SPHERE_SECTOR_COUNT; j++) {
+				const sectorAngle = j * sectorStep;
+
+				z = xz * Math.sin(sectorAngle);
+				x = xz * Math.cos(sectorAngle);
+
+				this.sphereNormal.push(x, y, z);
+			}
+		}
+		this.sphereNormal.push(0.0, 0.0, -1.0);
 	};
 
 	startUpdate = () => {
@@ -121,9 +156,9 @@ class Graph {
 					updateFiles[i].vertexSet = [this.findDir(dir, updateFiles[i].file, dir.path.length)];
 				} else if (updateFiles[i].action === 2) {
 					if (!haveDelete) {
-						this.updates[this.updateIndex].duration/=2;
+						this.updates[this.updateIndex].duration /= 2;
 						this.updates[this.updateIndex].expireDate -= this.updates[this.updateIndex].duration;
-						this.updates.splice(this.updateIndex+1, 0,
+						this.updates.splice(this.updateIndex + 1, 0,
 							new UpdateData('', [],
 								this.updates[this.updateIndex].expireDate,
 								this.updates[this.updateIndex].duration,
@@ -161,8 +196,8 @@ class Graph {
 					for (let j = 0; j < updateFiles[i].vertexSet.length; j++) {
 						if (updateFiles[i].vertexSet[j].parent) {
 							updateFiles[i].vertexSet[j].parent.removeChild(updateFiles[i].vertexSet[j]);
-							const newV = this.heightMap.get(updateFiles[i].vertexSet[j].level+1)-1;
-							this.heightMap.set(updateFiles[i].vertexSet[j].level+1, newV);
+							const newV = this.heightMap.get(updateFiles[i].vertexSet[j].level + 1) - 1;
+							this.heightMap.set(updateFiles[i].vertexSet[j].level + 1, newV);
 						}
 					}
 				}
@@ -211,11 +246,11 @@ class Graph {
 		let p = this.findDir(parent, path, pathInd);
 		for (let i = p.path.length; i < path.length - 1; i++) {
 			const child = new GitObject(path.slice(0, i + 1), true, p.level + 1, p);
-			if (this.heightMap.has(p.level+2)) {
-				const newV = this.heightMap.get(p.level+2)+1;
-				this.heightMap.set(p.level+2, newV);
+			if (this.heightMap.has(p.level + 2)) {
+				const newV = this.heightMap.get(p.level + 2) + 1;
+				this.heightMap.set(p.level + 2, newV);
 			} else {
-				this.heightMap.set(p.level+2, 1);
+				this.heightMap.set(p.level + 2, 1);
 			}
 			p.addChild(child);
 			res.push(child);
@@ -224,11 +259,11 @@ class Graph {
 		const lastChild = new GitObject(path, isDir, p.level + 1, p);
 		p.addChild(lastChild);
 		res.push(lastChild);
-		if (this.heightMap.has(p.level+2)) {
-			const newV = this.heightMap.get(p.level+2)+1;
-			this.heightMap.set(p.level+2, newV);
+		if (this.heightMap.has(p.level + 2)) {
+			const newV = this.heightMap.get(p.level + 2) + 1;
+			this.heightMap.set(p.level + 2, newV);
 		} else {
-			this.heightMap.set(p.level+2, 1);
+			this.heightMap.set(p.level + 2, 1);
 		}
 		this.calcHeight();
 		return res;
@@ -264,7 +299,7 @@ class Graph {
 		return res;
 	};
 	splitSpace = (duration) => {
-		this.root.boundRect = new Rect3D(-GRAPH_WIDTH/2, -GRAPH_DEPTH/2, GRAPH_WIDTH, GRAPH_DEPTH);
+		this.root.boundRect = new Rect3D(-GRAPH_WIDTH / 2, -GRAPH_DEPTH / 2, GRAPH_WIDTH, GRAPH_DEPTH);
 		this.edgeIndices = [];
 		this.orderedVertices = [];
 		let skip = 0;
@@ -337,16 +372,19 @@ class Graph {
 		this.coords = [];
 		this.colors = [];
 		this.indices = [];
+		this.normals = [];
 		for (let i = 0; i < this.orderedVertices.length; i++) {
 			this.orderedVertices[i].move(delta);
 			this.coords = this.coords.concat(this.orderedVertices[i].coords);
 			this.indices = this.indices.concat(this.orderedVertices[i].indices);
 			this.colors = this.colors.concat(this.orderedVertices[i].colors);
+			this.normals = this.normals.concat(this.sphereNormal);
 		}
 		if (this.currentContributor) {
 			this.currentContributor.buildEdges();
 			this.edgeCoords = this.currentContributor.edgeCoords;
 			this.edgeColors = this.currentContributor.edgeColors;
+			this.edgeNormals = this.currentContributor.edgeNormals;
 		}
 	};
 	calcHeight = () => {
@@ -366,7 +404,7 @@ class Graph {
 	get indices() {
 		return this.indices;
 	}
-	
+
 	get edgeIndices() {
 		return this.edgeIndices;
 	}
@@ -375,11 +413,18 @@ class Graph {
 		return this.colors;
 	}
 
+	get normals() {
+		return this.normals;
+	}
+
 	get edgeCoords() {
 		return this.edgeCoords;
 	}
-	
+
 	get edgeColors() {
 		return this.edgeColors;
+	}
+	get edgeNormals() {
+		return this.edgeNormals;
 	}
 }

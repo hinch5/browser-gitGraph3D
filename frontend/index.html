@@ -6,26 +6,25 @@
 	<script id="vertex-shader" type="x-shader/x-vertex">
 		attribute vec4 position;
 		attribute vec4 color;
+		attribute vec3 normal;
 
 		uniform mat4 model;
 		uniform mat4 view;
+		uniform mat4 normalModel;
 
 		varying lowp vec4 outColor;
 		void main(void)
 		{
+			vec4 pos = model*position;
 			gl_Position = view*model*position;
-			outColor = color;
-		}
-	</script>
-	<script id="vertex-non-transform-shader" type="x-shader/x-vertex">
-		attribute vec4 position;
-		attribute vec4 color;
-
-		varying lowp vec4 outColor
-		void main(void)
-		{
-			gl_Position = position;
-			outColor = color;
+			vec3 lightDir = vec3(0.0,0.0,-1.0);
+			vec3 norm = normalize(mat3(normalModel)*normal);
+			float diff = max(dot(norm, lightDir), 0.0);
+			vec3 fragPos = vec3(model*position);
+			vec3 viewDir = normalize(vec3(0.0,0.0,-1.0) - fragPos);
+    		vec3 reflectDir = reflect(-lightDir, norm);
+    		float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
+    		outColor = vec4(0.2*vec3(color)+diff*vec3(color)+spec*vec3(1.0,1.0,1.0),1.0);
 		}
 	</script>
 	<script id="fragment-shader" type="x-shader/x-fragment">

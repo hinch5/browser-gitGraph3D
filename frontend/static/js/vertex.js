@@ -57,6 +57,7 @@ class Vertex {
 	radius;
 	coords;
 	beginCoords;
+	normals;
 	indices;
 	colors;
 	color;
@@ -253,6 +254,7 @@ class GitContributor extends Vertex{
 	dir;
 	edgeCoords;
 	edgeColors;
+	edgeNormals;
 	constructor(name) {
 		super(0);
 		this.name = name;
@@ -263,6 +265,7 @@ class GitContributor extends Vertex{
 	buildEdges = () => {
 		this.edgeCoords = [];
 		this.edgeColors = [];
+		this.edgeNormals = [];
 		for (let i = 0; i < this.updates.length; i++) {
 			for (let j = 0; j < this.updates[i].vertexSet.length; j++) {
 				this.edgeCoords = this.edgeCoords.concat(this.coords.slice(this.coords.length-4));
@@ -274,6 +277,7 @@ class GitContributor extends Vertex{
 				} else {
 					this.edgeColors = this.edgeColors.concat([1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0]);
 				}
+				this.edgeNormals = this.edgeNormals.concat(0.0, 0.0, -1.0, 0.0, 0.0, -1.0);
 			}
 		}
 	};
@@ -285,6 +289,9 @@ class GitContributor extends Vertex{
 	}
 	get edgeColors() {
 		return this.edgeColors;
+	}
+	get edgeNormals() {
+		return this.edgeNormals;
 	}
 	set dir(dir) {
 		this.dir = dir;
