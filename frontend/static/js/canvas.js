@@ -18,6 +18,7 @@ class Canvas {
 	vertexAttrib;
 	colorAttrib;
 	normalAttrib;
+	font;
 
 	constructor(graph) {
 		this.graph = graph;
@@ -34,6 +35,7 @@ class Canvas {
 			this.clientY = ((h/2) - ev.clientY)/(h/2);
 		};
 		this.resize();
+		this.calcFont();
 		this.GL = this.canvas.getContext("webgl") || this.canvas.getContext("experimental-webgl");
 		if (!this.GL) {
 			alert('init gl fail');
@@ -49,6 +51,27 @@ class Canvas {
 		this.initShaders('vertex-shader', 'fragment-shader');
 		this.initBuffers();
 	}
+
+	calcFont = () => {
+		const width = this.canvas.width;
+		if (width < 500) {
+			this.font = 12;
+		} else if (width < 800) {
+			this.font = 14;
+		} else if (width < 1000) {
+			this.font = 16;
+		} else if (width < 1200) {
+			this.font = 18;
+		} else if (width < 1400) {
+			this.font = 20;
+		} else if (width < 1600) {
+			this.font = 22;
+		} else if (width < 2000) {
+			this.font = 24;
+		} else {
+			this.font = 28;
+		}
+	};
 
 	draw = (model, view, normalModel, delta, begin) => {
 		let name;
@@ -175,10 +198,10 @@ class Canvas {
 		const ctx = this.textCanvas.getContext('2d');
 		ctx.clearRect(0, 0, this.textCanvas.width, this.textCanvas.height);
 		ctx.fillStyle = '#FF0000';
-		ctx.font = '16px serif';
+		ctx.font = this.font + 'px serif';
 		const textWidth = ctx.measureText(dateString).width;
 		const pos = (w / 2) - (textWidth / 2);
-		ctx.fillText(dateString, pos, 16);
+		ctx.fillText(dateString, pos, this.font);
 		if (name) {
 			clientX = (clientX+1)*this.textCanvas.width/2;
 			clientY = (-clientY+1)*this.textCanvas.height/2;
@@ -188,8 +211,8 @@ class Canvas {
 			}
 			ctx.fillStyle = '#202020';
 			ctx.strokeStyle = '#FF0000';
-			ctx.fillRect(clientX, clientY-16, nameWidth+3, 17);
-			ctx.strokeRect(clientX, clientY-16, nameWidth+3, 17);
+			ctx.fillRect(clientX, clientY-this.font, nameWidth+3, this.font);
+			ctx.strokeRect(clientX, clientY-this.font, nameWidth+3, this.font);
 			ctx.fillStyle = '#FF0000';
 			ctx.fillText(name, clientX, clientY);
 		}
