@@ -225,6 +225,7 @@ class Graph {
 				this.finishUpdate();
 				this.updateIndex++;
 				this.iterate(delta);
+				return;
 			}
 			this.now += delta;
 		} else {
@@ -395,6 +396,32 @@ class Graph {
 			}
 		});
 		this.height = maxHeight;
+	};
+	getName = (x, y, model, view) => {
+		const resVertices = [];
+		const modelView = glMatrix.mat4.create();
+		glMatrix.mat4.multiply(modelView, view, model);
+		for (let i = 0; i < this.orderedVertices.length; i++) {
+			let centerCoords = this.orderedVertices[i].coords.slice(this.orderedVertices[i].coords.length-4);
+			let center = glMatrix.vec4.fromValues(centerCoords[0], centerCoords[1], centerCoords[2], centerCoords[3]);
+			glMatrix.vec4.transformMat4(center, center, modelView);
+			const deltaX = center[0] - x;
+			const deltaY = center[1] - y;
+			const dist = Math.sqrt(deltaX*deltaX + deltaY*deltaY);
+			if (dist < this.orderedVertices[i].radius) {
+				if (this.orderedVertices[i].path) {
+					resVertices.push([center, '/' + this.orderedVertices[i].path.join('/')]);
+				} else {
+					resVertices.push([center, this.orderedVertices[i].name]);
+				}
+			}
+		}
+		resVertices.sort((a, b) => {return a[0][2] < b[0][2] ? -1 : a[0][2] === b[0][2] ? 0 : 1});
+		if (resVertices.length > 0) {
+			return resVertices[0][1];
+		} else {
+			return null;
+		}
 	};
 
 	get coords() {

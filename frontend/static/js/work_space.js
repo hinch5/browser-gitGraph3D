@@ -126,8 +126,7 @@ class WorkSpace {
 		glMatrix.mat4.fromTranslation(view, glMatrix.vec3.fromValues(this.translate[0], this.translate[1], this.translate[2]));
 		glMatrix.mat4.invert(normalModel, model);
 		glMatrix.mat4.transpose(normalModel, normalModel);
-		this.canvas.writeDate(this.begin);
-		this.canvas.draw(model, view, normalModel, delta);
+		this.canvas.draw(model, view, normalModel, delta, this.begin);
 
 		setTimeout(this.drawScene, 10);
 	};

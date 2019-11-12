@@ -246,6 +246,10 @@ class Vertex {
 	get removing() {
 		return this.removing;
 	}
+
+	get radius() {
+		return this.radius;
+	}
 }
 
 class GitContributor extends Vertex{

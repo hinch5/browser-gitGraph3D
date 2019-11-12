@@ -1,6 +1,9 @@
 class Canvas {
 	graph;
 	canvas;
+	deadInside;
+	clientX;
+	clientY;
 	textCanvas;
 	GL;
 	vertexBuffer;
@@ -18,9 +21,18 @@ class Canvas {
 
 	constructor(graph) {
 		this.graph = graph;
+
 		this.canvas = document.getElementById('graph');
 		this.textCanvas = document.getElementById('text-canvas');
-		this.canvas.parentNode.addEventListener('resize', this.resize, false);
+		this.textCanvas.onmouseleave = () => {
+			this.deadInside = false;
+		};
+		this.textCanvas.onmousemove = (ev) => {
+			this.deadInside = true;
+			const w = this.textCanvas.width, h = this.textCanvas.height;
+			this.clientX = (ev.clientX - (w/2))/(w/2);
+			this.clientY = ((h/2) - ev.clientY)/(h/2);
+		};
 		this.resize();
 		this.GL = this.canvas.getContext("webgl") || this.canvas.getContext("experimental-webgl");
 		if (!this.GL) {
@@ -38,7 +50,8 @@ class Canvas {
 		this.initBuffers();
 	}
 
-	draw = (model, view, normalModel, delta) => {
+	draw = (model, view, normalModel, delta, begin) => {
+		let name;
 		this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
 		this.modelUniform = this.GL.getUniformLocation(this.shaderProgram, 'model');
 		this.viewUniform = this.GL.getUniformLocation(this.shaderProgram, 'view');
@@ -46,9 +59,14 @@ class Canvas {
 		this.GL.uniformMatrix4fv(this.modelUniform, false, model);
 		this.GL.uniformMatrix4fv(this.viewUniform, false, view);
 		this.GL.uniformMatrix4fv(this.normalModelUniform, false, normalModel);
-		
+
 		this.graph.iterate(delta);
+		if (this.deadInside) {
+			name = this.graph.getName(this.clientX, this.clientY, model, view);
+		}
 		this.initBuffers();
+
+		this.writeDate(begin, this.clientX, this.clientY, name);
 		
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
 		this.GL.vertexAttribPointer(this.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
@@ -150,7 +168,7 @@ class Canvas {
 			this.GL.viewport(0, 0, this.canvas.width, this.canvas.height);
 		}
 	};
-	writeDate = (date) => {
+	writeDate = (date, clientX, clientY, name) => {
 		const w = this.textCanvas.width;
 		const d = new Date(date);
 		const dateString = d.toISOString();
@@ -161,6 +179,20 @@ class Canvas {
 		const textWidth = ctx.measureText(dateString).width;
 		const pos = (w / 2) - (textWidth / 2);
 		ctx.fillText(dateString, pos, 16);
+		if (name) {
+			clientX = (clientX+1)*this.textCanvas.width/2;
+			clientY = (-clientY+1)*this.textCanvas.height/2;
+			const nameWidth = ctx.measureText(name).width;
+			if (clientX + nameWidth > w) {
+				clientX = w - nameWidth - 3;
+			}
+			ctx.fillStyle = '#202020';
+			ctx.strokeStyle = '#FF0000';
+			ctx.fillRect(clientX, clientY-16, nameWidth+3, 17);
+			ctx.strokeRect(clientX, clientY-16, nameWidth+3, 17);
+			ctx.fillStyle = '#FF0000';
+			ctx.fillText(name, clientX, clientY);
+		}
 	};
 	get width(){
 		return this.canvas.width;
