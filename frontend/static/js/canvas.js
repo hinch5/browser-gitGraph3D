@@ -20,9 +20,7 @@ class Canvas {
 	normalAttrib;
 	font;
 
-	constructor(graph) {
-		this.graph = graph;
-
+	constructor() {
 		this.canvas = document.getElementById('graph');
 		this.textCanvas = document.getElementById('text-canvas');
 		this.textCanvas.onmouseleave = () => {
@@ -49,7 +47,6 @@ class Canvas {
 			this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
 		}
 		this.initShaders('vertex-shader', 'fragment-shader');
-		this.initBuffers();
 	}
 
 	calcFont = () => {
@@ -222,5 +219,8 @@ class Canvas {
 	}
 	get height() {
 		return this.canvas.height;
+	}
+	set graph(graph) {
+		this.graph = graph;
 	}
 }

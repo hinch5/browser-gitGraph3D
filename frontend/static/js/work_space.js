@@ -29,7 +29,6 @@ class WorkSpace {
 	translate;
 	scale;
 	canvas;
-	loader;
 	graph;
 	aspectRatioBalance;
 	now;
@@ -42,38 +41,80 @@ class WorkSpace {
 		this.begin = Date.now();
 		window.addEventListener('keydown', this.transformation);
 
-		this.loader = new Loader();
-		this.graph = new Graph([
-			new UpdateData('test', [], 1000, 1000, [new UpdateFile(['json', 'statham.json'], false, 0)]),
-			new UpdateData('test', ['json'], 2000, 1000, [new UpdateFile(['json', 'stat.json'], false, 0)]),
-			new UpdateData('test', ['json'], 3000, 1000, [new UpdateFile(['json', 'stat.json'], false, 1), new UpdateFile(['json', 'statham.json'], false, 1)]),
-			new UpdateData('test2', [], 4000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 0),
-				new UpdateFile(['csv', 'b.csv'], false, 0)
-			]),
-			new UpdateData('test2', ['csv'], 5000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 2)]),
-			new UpdateData('test', [], 6000, 1000, [new UpdateFile(['csv'], true, 2), new UpdateFile(['csv', 'b.csv'], false, 2)],),
-			new UpdateData('test2', ['json'], 7000, 2000, [
-				new UpdateFile(['json', 'test.json'], false, 0),
-				new UpdateFile(['json', 'statham.json'], false, 1),
-				new UpdateFile(['json', 'config'], true, 0),
-				new UpdateFile(['json', 'stat.json'], false, 2),
-				new UpdateFile(['json', 'a.json'], false, 0)
-			]),
-			new UpdateData('test2', [], 9000, 2000, [
-				new UpdateFile(['js'], true, 0),
-				new UpdateFile(['js', 'index.js'], false, 0),
-				new UpdateFile(['js', 'vertex.js'], false, 0),
-				new UpdateFile(['json', 'config', 'config.json'], false, 0),
-				new UpdateFile(['js', 'canvas.js'], false, 0),
-				new UpdateFile(['js', 'graph.js'], false, 0)
-			]),
-			new UpdateData('test2', ['json', 'config'], 11000, 2000, [new UpdateFile(['json', 'config', 'config.json'], false, 2)])
-		]);
+		// this.graph = new Graph([
+		// 	new UpdateData('test', [], 1000, 1000, [new UpdateFile(['json', 'statham.json'], false, 0)]),
+		// 	new UpdateData('test', ['json'], 2000, 1000, [new UpdateFile(['json', 'stat.json'], false, 0)]),
+		// 	new UpdateData('test', ['json'], 3000, 1000, [new UpdateFile(['json', 'stat.json'], false, 1), new UpdateFile(['json', 'statham.json'], false, 1)]),
+		// 	new UpdateData('test2', [], 4000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 0),
+		// 		new UpdateFile(['csv', 'b.csv'], false, 0)
+		// 	]),
+		// 	new UpdateData('test2', ['csv'], 5000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 2)]),
+		// 	new UpdateData('test', [], 6000, 1000, [new UpdateFile(['csv'], true, 2), new UpdateFile(['csv', 'b.csv'], false, 2)],),
+		// 	new UpdateData('test2', ['json'], 7000, 2000, [
+		// 		new UpdateFile(['json', 'test.json'], false, 0),
+		// 		new UpdateFile(['json', 'statham.json'], false, 1),
+		// 		new UpdateFile(['json', 'config'], true, 0),
+		// 		new UpdateFile(['json', 'stat.json'], false, 2),
+		// 		new UpdateFile(['json', 'a.json'], false, 0)
+		// 	]),
+		// 	new UpdateData('test2', [], 9000, 2000, [
+		// 		new UpdateFile(['js'], true, 0),
+		// 		new UpdateFile(['js', 'index.js'], false, 0),
+		// 		new UpdateFile(['js', 'vertex.js'], false, 0),
+		// 		new UpdateFile(['json', 'config', 'config.json'], false, 0),
+		// 		new UpdateFile(['js', 'canvas.js'], false, 0),
+		// 		new UpdateFile(['js', 'graph.js'], false, 0)
+		// 	]),
+		// 	new UpdateData('test2', ['json', 'config'], 11000, 2000, [new UpdateFile(['json', 'config', 'config.json'], false, 2)])
+		// ]);
 
-		this.canvas = new Canvas(this.graph);
+		this.canvas = new Canvas();
 		this.aspectRatioBalance = this.canvas.height / this.canvas.width;
-		this.drawScene();
+		// this.drawScene();
 	}
+
+	loadGraph = () => {
+		const req = new XMLHttpRequest();
+
+		req.onreadystatechange = () => {
+			if (req.readyState === XMLHttpRequest.DONE) {
+				console.log(req.response.body);
+				if (req.status === 200) {
+					this.graph = new Graph([
+						new UpdateData('test', [], 1000, 1000, [new UpdateFile(['json', 'statham.json'], false, 0)]),
+						new UpdateData('test', ['json'], 2000, 1000, [new UpdateFile(['json', 'stat.json'], false, 0)]),
+						new UpdateData('test', ['json'], 3000, 1000, [new UpdateFile(['json', 'stat.json'], false, 1), new UpdateFile(['json', 'statham.json'], false, 1)]),
+						new UpdateData('test2', [], 4000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 0),
+							new UpdateFile(['csv', 'b.csv'], false, 0)
+						]),
+						new UpdateData('test2', ['csv'], 5000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 2)]),
+						new UpdateData('test', [], 6000, 1000, [new UpdateFile(['csv'], true, 2), new UpdateFile(['csv', 'b.csv'], false, 2)],),
+						new UpdateData('test2', ['json'], 7000, 2000, [
+							new UpdateFile(['json', 'test.json'], false, 0),
+							new UpdateFile(['json', 'statham.json'], false, 1),
+							new UpdateFile(['json', 'config'], true, 0),
+							new UpdateFile(['json', 'stat.json'], false, 2),
+							new UpdateFile(['json', 'a.json'], false, 0)
+						]),
+						new UpdateData('test2', [], 9000, 2000, [
+							new UpdateFile(['js'], true, 0),
+							new UpdateFile(['js', 'index.js'], false, 0),
+							new UpdateFile(['js', 'vertex.js'], false, 0),
+							new UpdateFile(['json', 'config', 'config.json'], false, 0),
+							new UpdateFile(['js', 'canvas.js'], false, 0),
+							new UpdateFile(['js', 'graph.js'], false, 0)
+						]),
+						new UpdateData('test2', ['json', 'config'], 11000, 2000, [new UpdateFile(['json', 'config', 'config.json'], false, 2)])
+					]);
+					this.canvas.graph = this.graph;
+					this.canvas.initBuffers();
+					this.drawScene();
+				} else {
+					// handle error
+				}
+			}
+		};
+	};
 
 	transformation = (ev) => {
 		if (ev.keyCode === 219) {
