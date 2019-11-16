@@ -44,7 +44,7 @@
 	<script type="text/javascript" src="/static/js/graph.js"></script>
 	<script type="text/javascript" src="/static/js/index.js"></script>
 </head>
-<body class="main" onload="start()">
+<body id="main" class="main" onload="start()">
 <div id="manager" class="manager-form">
 	<div class="form-input">
 		<div class="path-input">
@@ -61,7 +61,7 @@
 		<div class="length-input">
 			<input id="day-length-input" placeholder="day length(ms)" value="3000" oninput="space.validateForm()">
 			<input id="max-commit-length-input" placeholder="max commit length(ms)" value="1000" oninput="space.validateForm()">
-			<input id="skip-length-input" placeholder="skip time(days)" value="0" oninput="space.validateForm()">
+			<input id="skip-length-input" placeholder="skip time(days)" value="4" oninput="space.validateForm()">
 		</div>
 	</div>
 	<div class="form-submit">

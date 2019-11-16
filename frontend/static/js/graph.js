@@ -234,6 +234,14 @@ class Graph {
 			this.edgeColors = [];
 		}
 	};
+	checkSkip = () => {
+		if (this.updateIndex > 0 && this.updateIndex < this.updates.length) {
+			if (this.now > this.updates[this.updateIndex - 1].expireDate) {
+				return this.updates[this.updateIndex].startDate - this.now;
+			}
+		}
+		return 0;
+	};
 	findDir = (parent, path, pathInd) => {
 		for (let i = 0; i < parent.children.length; i++) {
 			if (parent.children[i].path[pathInd] === path[pathInd]) {
@@ -402,12 +410,12 @@ class Graph {
 		const modelView = glMatrix.mat4.create();
 		glMatrix.mat4.multiply(modelView, view, model);
 		for (let i = 0; i < this.orderedVertices.length; i++) {
-			let centerCoords = this.orderedVertices[i].coords.slice(this.orderedVertices[i].coords.length-4);
+			let centerCoords = this.orderedVertices[i].coords.slice(this.orderedVertices[i].coords.length - 4);
 			let center = glMatrix.vec4.fromValues(centerCoords[0], centerCoords[1], centerCoords[2], centerCoords[3]);
 			glMatrix.vec4.transformMat4(center, center, modelView);
 			const deltaX = center[0] - x;
 			const deltaY = center[1] - y;
-			const dist = Math.sqrt(deltaX*deltaX + deltaY*deltaY);
+			const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 			if (dist < this.orderedVertices[i].radius) {
 				if (this.orderedVertices[i].path) {
 					resVertices.push([center, '/' + this.orderedVertices[i].path.join('/')]);
@@ -416,7 +424,9 @@ class Graph {
 				}
 			}
 		}
-		resVertices.sort((a, b) => {return a[0][2] < b[0][2] ? -1 : a[0][2] === b[0][2] ? 0 : 1});
+		resVertices.sort((a, b) => {
+			return a[0][2] < b[0][2] ? -1 : a[0][2] === b[0][2] ? 0 : 1
+		});
 		if (resVertices.length > 0) {
 			return resVertices[0][1];
 		} else {
@@ -451,6 +461,7 @@ class Graph {
 	get edgeColors() {
 		return this.edgeColors;
 	}
+
 	get edgeNormals() {
 		return this.edgeNormals;
 	}

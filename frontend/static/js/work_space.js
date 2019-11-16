@@ -34,6 +34,8 @@ class WorkSpace {
 	now;
 	begin;
 	processing;
+	skip;
+	dayDuration;
 
 	constructor() {
 		this.angles = [0, 0, 0];
@@ -42,44 +44,53 @@ class WorkSpace {
 		this.begin = Date.now();
 		this.processing = false;
 		window.addEventListener('keydown', this.transformation);
+		window.addEventListener('resize', this.resize);
 
 		this.canvas = new Canvas();
-		this.aspectRatioBalance = this.canvas.height / this.canvas.width;
+		this.resize();
 
 		this.validateForm();
 	}
 
 	validateForm = () => {
-		let res = true;
-		// console.log(document.getElementById('path-input').value === '');
-		if (document.getElementById('path-input').value === '') {
-			res = false;
-		}
-		// console.log(res && (document.getElementById('day-length-input').value === '' || !document.getElementById('day-length-input').value.match('\d+')));
-		// console.log(document.getElementById('day-length-input').value, document.getElementById('day-length-input').value.match());
-		if (res && (document.getElementById('day-length-input').value === '' ||
-			!document.getElementById('day-length-input').value.match('^[0-9]+$'))) {
-			res = false;
-		}
-		// console.log(res && (document.getElementById('max-commit-length-input').value === '' || !document.getElementById('max-commit-length-input').value.match('\d+')));
-		if (res && (document.getElementById('max-commit-length-input').value === '' ||
-			!document.getElementById('max-commit-length-input').value.match('^[0-9]+$'))) {
-			res = false;
-		}
-		// console.log(res && (document.getElementById('skip-length-input').value === '' || !document.getElementById('skip-length-input').match('\d+')));
-		if (res && (document.getElementById('skip-length-input').value === '' ||
-			!document.getElementById('skip-length-input').value.match('^[0-9]+$'))) {
-			res = false;
-		}
+		let res = this.checkParams(
+			document.getElementById('path-input').value,
+			document.getElementById('day-length-input').value,
+			document.getElementById('max-commit-length-input').value,
+			document.getElementById('skip-length-input').value
+		);
 		document.getElementById('repo-submit').disabled = !res;
 		return res;
 	};
 
+	checkParams = (path, dayDuration, maxCommitDuration, skipDuration) => {
+		let res = true;
+		if (path === '') {
+			res = false;
+		}
+		if (res && (dayDuration === '' || !dayDuration.match('^[0-9]+$'))) {
+			res = false;
+		}
+		if (res && (maxCommitDuration === '' || !maxCommitDuration.match('^[0-9]+$'))) {
+			res = false;
+		}
+		if (res && (skipDuration === '' || !skipDuration.match('^[0-9]+$'))) {
+			res = false;
+		}
+		return res;
+	};
+
 	loadGraph = () => {
-		let repoType = document.getElementById('repo-type-select').value, dayDuration, maxCommitDuration, path;
+		let repoType = document.getElementById('repo-type-select').value, dayDuration, maxCommitDuration, path, skip;
 		path = document.getElementById('path-input').value;
 		dayDuration = document.getElementById('day-length-input').value;
 		maxCommitDuration = document.getElementById('max-commit-length-input').value;
+		skip = document.getElementById('skip-length-input').value;
+		if (!this.checkParams(path, dayDuration, maxCommitDuration, skip)) {
+			return;
+		}
+		this.dayDuration = Number(dayDuration);
+		this.skip = Number(skip) * this.dayDuration;
 		this.processing = true;
 		const req = new XMLHttpRequest();
 		req.open('POST', '/api/repository');
@@ -87,38 +98,27 @@ class WorkSpace {
 		req.send('repoType=' + repoType + '&path=' + path + '&dayDuration=' + dayDuration + '&maxCommitDuration=' + maxCommitDuration);
 		req.onreadystatechange = () => {
 			if (req.readyState === XMLHttpRequest.DONE) {
-				console.log(req.response.body);
 				if (req.status === 200) {
-					// this.graph = new Graph([
-					// 	new UpdateData('test', [], 1000, 1000, [new UpdateFile(['json', 'statham.json'], false, 0)]),
-					// 	new UpdateData('test', ['json'], 2000, 1000, [new UpdateFile(['json', 'stat.json'], false, 0)]),
-					// 	new UpdateData('test', ['json'], 3000, 1000, [new UpdateFile(['json', 'stat.json'], false, 1),
-					// 		new UpdateFile(['json', 'statham.json'], false, 1)]),
-					// 	new UpdateData('test2', [], 4000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 0),
-					// 		new UpdateFile(['csv', 'b.csv'], false, 0)
-					// 	]),
-					// 	new UpdateData('test2', ['csv'], 5000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 2)]),
-					// 	new UpdateData('test', [], 6000, 1000, [new UpdateFile(['csv'], true, 2), new UpdateFile(['csv', 'b.csv'], false, 2)],),
-					// 	new UpdateData('test2', ['json'], 7000, 2000, [
-					// 		new UpdateFile(['json', 'test.json'], false, 0),
-					// 		new UpdateFile(['json', 'statham.json'], false, 1),
-					// 		new UpdateFile(['json', 'config'], true, 0),
-					// 		new UpdateFile(['json', 'stat.json'], false, 2),
-					// 		new UpdateFile(['json', 'a.json'], false, 0)
-					// 	]),
-					// 	new UpdateData('test2', [], 9000, 2000, [
-					// 		new UpdateFile(['js'], true, 0),
-					// 		new UpdateFile(['js', 'index.js'], false, 0),
-					// 		new UpdateFile(['js', 'vertex.js'], false, 0),
-					// 		new UpdateFile(['json', 'config', 'config.json'], false, 0),
-					// 		new UpdateFile(['js', 'canvas.js'], false, 0),
-					// 		new UpdateFile(['js', 'graph.js'], false, 0)
-					// 	]),
-					// 	new UpdateData('test2', ['json', 'config'], 11000, 2000, [new UpdateFile(['json', 'config', 'config.json'], false, 2)])
-					// ]);
-					// this.canvas.graph = this.graph;
-					// this.canvas.initBuffers();
-					// this.drawScene();
+					const resp = JSON.parse(req.response);
+					const updates = [];
+					for (let i = 0; i < resp.length; i++) {
+						const fileUpdates = [];
+						for (let j = 0; j < resp[i].updates.length; j++) {
+							fileUpdates.push(new UpdateFile(resp[i].updates[j].file, false, resp[i].updates[j].action))
+						}
+						updates.push(new UpdateData(
+							resp[i].name,
+							resp[i].dir,
+							resp[i].startDate,
+							resp[i].duration,
+							fileUpdates
+						));
+					}
+					this.graph = new Graph(updates);
+					this.canvas.graph = this.graph;
+					this.canvas.initBuffers();
+					document.getElementById('main').removeChild(document.getElementById('manager'));
+					this.drawScene();
 				} else {
 					// handle error
 				}
@@ -168,6 +168,12 @@ class WorkSpace {
 			delta = t - this.now;
 			this.now = t;
 		}
+		if (this.skip !== 0) {
+			const skip = this.graph.checkSkip();
+			if (skip > this.skip) {
+				delta += skip - this.dayDuration / 4;
+			}
+		}
 		this.begin += SPEED * delta;
 		let model = glMatrix.mat4.create(), view = glMatrix.mat4.create(), normalModel = glMatrix.mat4.create();
 		glMatrix.mat4.fromScaling(model, glMatrix.vec3.fromValues(this.aspectRatioBalance, 1, 1));
@@ -181,5 +187,9 @@ class WorkSpace {
 		this.canvas.draw(model, view, normalModel, delta, this.begin);
 
 		setTimeout(this.drawScene, 10);
+	};
+	resize = () => {
+		this.canvas.resize();
+		this.aspectRatioBalance = this.canvas.height / this.canvas.width;
 	};
 }

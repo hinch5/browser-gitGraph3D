@@ -29,11 +29,11 @@ class Canvas {
 		this.textCanvas.onmousemove = (ev) => {
 			this.deadInside = true;
 			const w = this.textCanvas.width, h = this.textCanvas.height;
-			this.clientX = (ev.clientX - (w/2))/(w/2);
-			this.clientY = ((h/2) - ev.clientY)/(h/2);
+			this.clientX = (ev.clientX - (w / 2)) / (w / 2);
+			this.clientY = ((h / 2) - ev.clientY) / (h / 2);
 		};
-		this.resize();
 		this.calcFont();
+		this.resize();
 		this.GL = this.canvas.getContext("webgl") || this.canvas.getContext("experimental-webgl");
 		if (!this.GL) {
 			alert('init gl fail');
@@ -87,7 +87,7 @@ class Canvas {
 		this.initBuffers();
 
 		this.writeDate(begin, this.clientX, this.clientY, name);
-		
+
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
 		this.GL.vertexAttribPointer(this.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
@@ -99,8 +99,8 @@ class Canvas {
 
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
 		this.GL.drawElements(this.GL.LINES, this.graph.edgeIndices.length, this.GL.UNSIGNED_SHORT, 0);
-		
-		this.GL.drawArrays(this.GL.LINES, this.graph.coords.length/4, this.graph.edgeCoords.length/4);
+
+		this.GL.drawArrays(this.GL.LINES, this.graph.coords.length / 4, this.graph.edgeCoords.length / 4);
 	};
 
 	initShaders = (vertex, fragment) => {
@@ -166,7 +166,7 @@ class Canvas {
 		this.indexBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.graph.indices), this.GL.DYNAMIC_DRAW);
-		
+
 		this.indexBufferEdges = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
 		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.graph.edgeIndices), this.GL.DYNAMIC_DRAW);
@@ -174,7 +174,7 @@ class Canvas {
 		this.colorBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
 		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.colors.concat(this.graph.edgeColors)), this.GL.DYNAMIC_DRAW);
-		
+
 		this.normalBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.normalBuffer);
 		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.normals.concat(this.graph.edgeNormals)), this.GL.DYNAMIC_DRAW);
@@ -200,26 +200,29 @@ class Canvas {
 		const pos = (w / 2) - (textWidth / 2);
 		ctx.fillText(dateString, pos, this.font);
 		if (name) {
-			clientX = (clientX+1)*this.textCanvas.width/2;
-			clientY = (-clientY+1)*this.textCanvas.height/2;
+			clientX = (clientX + 1) * this.textCanvas.width / 2;
+			clientY = (-clientY + 1) * this.textCanvas.height / 2;
 			const nameWidth = ctx.measureText(name).width;
 			if (clientX + nameWidth > w) {
 				clientX = w - nameWidth - 3;
 			}
 			ctx.fillStyle = '#202020';
 			ctx.strokeStyle = '#FF0000';
-			ctx.fillRect(clientX, clientY-this.font, nameWidth+3, this.font);
-			ctx.strokeRect(clientX, clientY-this.font, nameWidth+3, this.font);
+			ctx.fillRect(clientX, clientY - this.font, nameWidth + 3, this.font);
+			ctx.strokeRect(clientX, clientY - this.font, nameWidth + 3, this.font);
 			ctx.fillStyle = '#FF0000';
 			ctx.fillText(name, clientX, clientY);
 		}
 	};
-	get width(){
+
+	get width() {
 		return this.canvas.width;
 	}
+
 	get height() {
 		return this.canvas.height;
 	}
+
 	set graph(graph) {
 		this.graph = graph;
 	}
