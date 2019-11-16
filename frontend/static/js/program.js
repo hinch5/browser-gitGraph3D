@@ -2,24 +2,19 @@ class Program {
 	GL;
 	vertexAttrib;
 	colorAttrib;
-	program;
-	uniformLocations;
+	normalAttrib;
+	shaderProgram;
 	constructor(GL, vertex, fragment) {
 		this.GL = GL;
-		this.uniformLocations = new Map();
 		const vertexShader = this.getShader(vertex);
 		const fragmentShader = this.getShader(fragment);
 		this.shaderProgram = this.GL.createProgram();
-		// this.GL.attachShader(this.shaderProgram, vertexShader);
-		// this.GL.attachShader(this.shaderProgram, fragmentShader);
-		// this.GL.linkProgram(this.shaderProgram);
+		this.GL.attachShader(this.shaderProgram, vertexShader);
+		this.GL.attachShader(this.shaderProgram, fragmentShader);
+		this.GL.linkProgram(this.shaderProgram);
 
 		if (!this.GL.getProgramParameter(this.shaderProgram, this.GL.LINK_STATUS)) {
-			console.log('link shader program err');
-		}
-		// console.log(arguments);
-		for (let i = 3; i < arguments.length; i++) {
-			this.uniformLocations.add(arguments[i], null);
+			console.log('link shader program err ', this.GL.getProgramInfoLog(this.shaderProgram));
 		}
 	}
 	
@@ -54,15 +49,19 @@ class Program {
 		}
 		return shader;
 	};
-	use = () => {
-		// this.GL.useProgram(this.program);
-		// this.vertexAttrib = this.GL.getAttribLocation(this.program, "position");
-		// this.GL.enableVertexAttribArray(this.vertexAttrib);
-		// this.colorAttrib = this.GL.getAttribLocation(this.program, "color");
-		// this.GL.enableVertexAttribArray(this.colorAttrib);
-		// for (const m of this.uniformLocations.keys()) {
-		// 	this.uniformLocations.set(m, this.GL.getUniformLocation(this.shaderProgram, m));
-		// }
+	use = (haveNormal) => {
+		this.GL.useProgram(this.shaderProgram);
+		this.vertexAttrib = this.GL.getAttribLocation(this.shaderProgram, "position");
+		this.GL.enableVertexAttribArray(this.vertexAttrib);
+		this.colorAttrib = this.GL.getAttribLocation(this.shaderProgram, "color");
+		this.GL.enableVertexAttribArray(this.colorAttrib);
+		if (haveNormal) {
+			this.normalAttrib = this.GL.getAttribLocation(this.shaderProgram, "normal");
+			this.GL.enableVertexAttribArray(this.normalAttrib);
+		}
+	};
+	getUniformLocation = (name) => {
+		return this.GL.getUniformLocation(this.shaderProgram, name);
 	};
 	get vertexAttrib() {
 		return this.vertexAttrib;
@@ -70,7 +69,8 @@ class Program {
 	get colorAttrib() {
 		return this.colorAttrib;
 	}
-	get program() {
-		return this.program;
+	get normalAttrib() {
+		return this.normalAttrib;
 	}
+
 }

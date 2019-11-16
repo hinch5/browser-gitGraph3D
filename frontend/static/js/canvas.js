@@ -14,11 +14,9 @@ class Canvas {
 	modelUniform;
 	viewUniform;
 	normalModelUniform;
-	shaderProgram;
-	vertexAttrib;
-	colorAttrib;
-	normalAttrib;
 	font;
+	graphProgram;
+	edgeProgram;
 
 	constructor() {
 		this.canvas = document.getElementById('graph');
@@ -45,7 +43,10 @@ class Canvas {
 			this.GL.blendFunc(this.GL.SRC_ALPHA, this.GL.ONE_MINUS_SRC_ALPHA);
 			this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
 		}
-		this.initShaders('vertex-shader', 'fragment-shader');
+		
+		this.graphProgram = new Program(this.GL, 'vertex-shader', 'fragment-shader');
+		this.edgeProgram = new Program(this.GL, 'vertex-simple-shader', 'fragment-shader');
+		// this.initShaders('vertex-shader', 'fragment-shader');
 	}
 
 	calcFont = () => {
@@ -70,11 +71,12 @@ class Canvas {
 	};
 
 	draw = (model, view, normalModel, delta, begin) => {
+		this.graphProgram.use(true);
 		let name;
 		this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
-		this.modelUniform = this.GL.getUniformLocation(this.shaderProgram, 'model');
-		this.viewUniform = this.GL.getUniformLocation(this.shaderProgram, 'view');
-		this.normalModelUniform = this.GL.getUniformLocation(this.shaderProgram, 'normalModel');
+		this.modelUniform = this.graphProgram.getUniformLocation('model');
+		this.viewUniform = this.graphProgram.getUniformLocation('view');
+		this.normalModelUniform = this.graphProgram.getUniformLocation('normalModel');
 		this.GL.uniformMatrix4fv(this.modelUniform, false, model);
 		this.GL.uniformMatrix4fv(this.viewUniform, false, view);
 		this.GL.uniformMatrix4fv(this.normalModelUniform, false, normalModel);
@@ -88,75 +90,32 @@ class Canvas {
 		this.writeDate(begin, this.clientX, this.clientY, name);
 
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
-		this.GL.vertexAttribPointer(this.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
+		this.GL.vertexAttribPointer(this.graphProgram.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
-		this.GL.vertexAttribPointer(this.colorAttrib, 4, this.GL.FLOAT, true, 0, 0);
+		this.GL.vertexAttribPointer(this.graphProgram.colorAttrib, 4, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.normalBuffer);
-		this.GL.vertexAttribPointer(this.normalAttrib, 3, this.GL.FLOAT, true, 0, 0);
+		this.GL.vertexAttribPointer(this.graphProgram.normalAttrib, 3, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 		this.GL.drawElements(this.GL.TRIANGLES, this.graph.indices.length, this.GL.UNSIGNED_SHORT, 0);
 
+		this.edgeProgram.use();
+		this.modelUniform = this.edgeProgram.getUniformLocation('model');
+		this.viewUniform = this.edgeProgram.getUniformLocation('view');
+		this.GL.uniformMatrix4fv(this.modelUniform, false, model);
+		this.GL.uniformMatrix4fv(this.viewUniform, false, view);
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
+
+		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
+		this.GL.vertexAttribPointer(this.edgeProgram.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
+		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
+		this.GL.vertexAttribPointer(this.edgeProgram.colorAttrib, 4, this.GL.FLOAT, true, 0, 0);
+		// this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+		
 		this.GL.drawElements(this.GL.LINES, this.graph.edgeIndices.length, this.GL.UNSIGNED_SHORT, 0);
 
 		this.GL.drawArrays(this.GL.LINES, this.graph.coords.length / 4, this.graph.edgeCoords.length / 4);
 	};
-
-	initShaders = (vertex, fragment) => {
-		let fragmentShader = this.getShader(this.GL, fragment);
-		let vertexShader = this.getShader(this.GL, vertex);
-
-		this.shaderProgram = this.GL.createProgram();
-		this.GL.attachShader(this.shaderProgram, vertexShader);
-		this.GL.attachShader(this.shaderProgram, fragmentShader);
-		this.GL.linkProgram(this.shaderProgram);
-
-		if (!this.GL.getProgramParameter(this.shaderProgram, this.GL.LINK_STATUS)) {
-			alert("Unable to initialize the shader program.");
-		}
-
-		this.GL.useProgram(this.shaderProgram);
-
-		this.vertexAttrib = this.GL.getAttribLocation(this.shaderProgram, "position");
-		this.GL.enableVertexAttribArray(this.vertexAttrib);
-		this.colorAttrib = this.GL.getAttribLocation(this.shaderProgram, "color");
-		this.GL.enableVertexAttribArray(this.colorAttrib);
-		this.normalAttrib = this.GL.getAttribLocation(this.shaderProgram, "normal");
-		this.GL.enableVertexAttribArray(this.normalAttrib);
-	};
-	getShader = (gl, id) => {
-		let shaderScript, theSource, currentChild, shader;
-
-		shaderScript = document.getElementById(id);
-		if (!shaderScript) {
-			return null;
-		}
-		theSource = '';
-		currentChild = shaderScript.firstChild;
-
-		while (currentChild) {
-			if (currentChild.nodeType === currentChild.TEXT_NODE) {
-				theSource += currentChild.textContent;
-			}
-			currentChild = currentChild.nextSibling;
-		}
-		if (shaderScript.type === 'x-shader/x-fragment') {
-			shader = gl.createShader(gl.FRAGMENT_SHADER);
-		} else if (shaderScript.type === 'x-shader/x-vertex') {
-			shader = gl.createShader(gl.VERTEX_SHADER);
-		} else {
-			return null;
-		}
-		gl.shaderSource(shader, theSource);
-		gl.compileShader(shader);
-
-		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-			alert(gl.getShaderInfoLog(shader));
-			return null;
-		}
-
-		return shader;
-	};
+	
 	initBuffers = () => {
 		this.vertexBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);

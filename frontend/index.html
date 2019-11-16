@@ -27,6 +27,20 @@
     		outColor = vec4(0.2*vec3(color)+diff*vec3(color)+spec*vec3(color),1.0);
 		}
 	</script>
+	<script id="vertex-simple-shader" type="x-shader/x-vertex">
+		attribute vec4 position;
+		attribute vec4 color;
+
+		uniform mat4 model;
+		uniform mat4 view;
+
+		varying lowp vec4 outColor;
+		void main(void)
+		{
+			gl_Position = view*model*position;
+			outColor = color;
+		}
+	</script>
 	<script id="fragment-shader" type="x-shader/x-fragment">
 		varying lowp vec4 outColor;
 
