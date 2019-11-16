@@ -370,7 +370,7 @@ class Graph {
 						}
 						const firstSet = vertexSet[0].splice(firstInd, vertexSet[0].length - firstInd);
 						const rectSplitted = vertexSet[1].split(percent);
-						stack.push([firstSet, rectSplitted[0], vertexSet[2]], [vertexSet[0], rectSplitted[1], vertexSet[2]]);
+						stack.push([firstSet, rectSplitted[1], vertexSet[2]], [vertexSet[0], rectSplitted[0], vertexSet[2]]);
 						break
 					}
 				}
@@ -431,6 +431,16 @@ class Graph {
 			return resVertices[0][1];
 		} else {
 			return null;
+		}
+	};
+
+	printDsf = () => {
+		console.log('print dsf');
+		const stack = [this.root];
+		while (stack.length !== 0) {
+			const v = stack.pop();
+			console.log(v.path, v.level, v.size, v.haveContributor());
+			stack.push(...v.children);
 		}
 	};
 

@@ -32,7 +32,6 @@ class Canvas {
 			this.clientX = (ev.clientX - (w / 2)) / (w / 2);
 			this.clientY = ((h / 2) - ev.clientY) / (h / 2);
 		};
-		this.calcFont();
 		this.resize();
 		this.GL = this.canvas.getContext("webgl") || this.canvas.getContext("experimental-webgl");
 		if (!this.GL) {
@@ -184,6 +183,7 @@ class Canvas {
 		this.canvas.height = this.canvas.parentNode.getBoundingClientRect().height;
 		this.textCanvas.width = this.canvas.parentNode.getBoundingClientRect().width;
 		this.textCanvas.height = this.canvas.parentNode.getBoundingClientRect().height;
+		this.calcFont();
 		if (this.GL) {
 			this.GL.viewport(0, 0, this.canvas.width, this.canvas.height);
 		}
