@@ -4,17 +4,21 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"math"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type GitOperation struct {
-	Dir       []string
-	Duration  int64
-	Name      string
-	StartDate int64
-	Updates   []GitOperationFile
+	Dir       []string           `json:"dir"`
+	Duration  float64            `json:"duration"`
+	Name      string             `json:"name"`
+	StartDate float64            `json:"startDate"`
+	StartTime time.Time          `json:"-"`
+	Updates   []GitOperationFile `json:"updates"`
 }
 
 type GitOperationFile struct {
@@ -27,7 +31,7 @@ func (operation *GitOperation) calcOperationDir() {
 	for {
 		candidate := ""
 		for _, u := range operation.Updates {
-			if len(u.File) < i + 1 {
+			if len(u.File)-1 < i+1 {
 				break
 			}
 			if candidate == "" {
@@ -46,12 +50,54 @@ func (operation *GitOperation) calcOperationDir() {
 	}
 }
 
+func calcOperationsDuration(operations []GitOperation, dayDuration, maxCommitDuration float64) {
+	maxCommits := int(math.Ceil(dayDuration / maxCommitDuration))
+	i, j, date := 0, 0, 0.0
+	//log.Println(operations)
+	for i < len(operations) {
+		operations[i].StartDate = date
+		for j = i; j < len(operations) &&
+			operations[j].StartTime.Year() == operations[i].StartTime.Year() &&
+			operations[i].StartTime.YearDay() == operations[j].StartTime.YearDay(); j++ {
+		}
+		if j-i > maxCommits {
+			singleDuration := dayDuration / float64(j-i)
+			operations[i].Duration = singleDuration
+			for k := i + 1; k < j; k++ {
+				operations[k].StartDate, operations[k].Duration = operations[k-1].StartDate+singleDuration, singleDuration
+			}
+		} else {
+			pauseTotalDuration := dayDuration - float64(j-i)*maxCommitDuration
+			singlePause := pauseTotalDuration / float64(j-i)
+			operations[i].StartDate += singlePause
+			operations[i].Duration = maxCommitDuration
+			for k := i + 1; k < j; k++ {
+				operations[k].StartDate, operations[k].Duration = operations[k-1].StartDate +
+					operations[k-1].Duration + singlePause, maxCommitDuration
+			}
+		}
+		if j < len(operations) {
+			first, second := operations[j-1].StartTime, operations[j].StartTime
+			first = time.Date(first.Year(), first.Month(), first.Day(), 0, 0, 0, 0, first.Location())
+			second = time.Date(second.Year(), second.Month(), second.Day(), 0, 0, 0, 0, second.Location())
+			//log.Println(first, second)
+			date += dayDuration * second.Sub(first).Hours() / 24
+			//log.Println(date)
+		}
+		i = j
+	}
+}
+
 func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res []GitOperation, err error) {
-	cmd := exec.Command("git", "log", "--name-status", "--first-parent", "-m", "-reverse")
+	cmd := exec.Command("git", "log", "--name-status", "--first-parent", "-m", "--reverse", "--date=unix")
 	cmd.Dir = path
 	reader, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("git log stdout pipe err: %v", err))
+	}
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		return nil, errors.New(fmt.Sprintf("start git log err: %v", err))
 	}
 	defer reader.Close()
 	scanner := bufio.NewScanner(reader)
@@ -68,9 +114,10 @@ func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res
 				}
 				operation := GitOperation{
 					Dir:       []string{},
-					Duration:  0,   // calc duration
+					Duration:  0, // calc duration
 					Name:      name,
-					StartDate: date, // calc
+					StartDate: float64(date), // calc
+					StartTime: time.Unix(date, 0),
 					Updates:   files,
 				}
 				// calc dir
@@ -83,7 +130,10 @@ func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res
 			break
 		}
 	}
-	
+	if err := cmd.Wait(); err != nil {
+		return nil, errors.New(fmt.Sprintf("wait git log err: %v", err))
+	}
+	calcOperationsDuration(res, float64(dayDuration), float64(maxCommitDuration))
 	return
 }
 

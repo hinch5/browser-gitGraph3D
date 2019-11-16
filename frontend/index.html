@@ -46,6 +46,27 @@
 </head>
 <body class="main" onload="start()">
 <div id="manager" class="manager-form">
+	<div class="form-input">
+		<div class="path-input">
+			<select id="repo-type-select">
+				<option>
+					local
+				</option>
+				<option>
+					remote
+				</option>
+			</select>
+			<input id="path-input" placeholder="path or url" oninput="space.validateForm()">
+		</div>
+		<div class="length-input">
+			<input id="day-length-input" placeholder="day length(ms)" value="3000" oninput="space.validateForm()">
+			<input id="max-commit-length-input" placeholder="max commit length(ms)" value="1000" oninput="space.validateForm()">
+			<input id="skip-length-input" placeholder="skip time(days)" value="0" oninput="space.validateForm()">
+		</div>
+	</div>
+	<div class="form-submit">
+		<button id="repo-submit" onclick="space.loadGraph()">Submit</button>
+	</div>
 </div>
 <canvas id="text-canvas" class="text-canvas"></canvas>
 <canvas id="graph" class="canvas"></canvas>

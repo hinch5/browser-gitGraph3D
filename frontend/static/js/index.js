@@ -24,6 +24,8 @@ const toggleFullScreen = () => {
 };
 */
 
+let space;
+
 const start = () => {
-	const space = new WorkSpace();
+	space = new WorkSpace();
 };

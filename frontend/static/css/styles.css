@@ -34,4 +34,32 @@
     justify-self: center;
     z-index: 3;
     background-color: #FFFFFF;
+    display: grid;
+    grid-template-rows: 70% 30%;
+}
+
+.form-input {
+    display: grid;
+    grid-template-rows: 50px 50px;
+}
+
+.path-input {
+    display: grid;
+    grid-template-columns: 25% 70%;
+    justify-content: space-between;
+}
+
+.length-input {
+    display: grid;
+    grid-template-columns: 30% 30% 30%;
+    justify-content: space-between;
+}
+
+.form-submit {
+    display: grid;
+}
+
+.form-submit button {
+    justify-self: flex-end;
+    align-self: flex-end;
 }

@@ -33,85 +33,96 @@ class WorkSpace {
 	aspectRatioBalance;
 	now;
 	begin;
+	processing;
 
 	constructor() {
 		this.angles = [0, 0, 0];
 		this.translate = [0, 0, 0];
 		this.scale = 0.0;
 		this.begin = Date.now();
+		this.processing = false;
 		window.addEventListener('keydown', this.transformation);
-
-		// this.graph = new Graph([
-		// 	new UpdateData('test', [], 1000, 1000, [new UpdateFile(['json', 'statham.json'], false, 0)]),
-		// 	new UpdateData('test', ['json'], 2000, 1000, [new UpdateFile(['json', 'stat.json'], false, 0)]),
-		// 	new UpdateData('test', ['json'], 3000, 1000, [new UpdateFile(['json', 'stat.json'], false, 1), new UpdateFile(['json', 'statham.json'], false, 1)]),
-		// 	new UpdateData('test2', [], 4000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 0),
-		// 		new UpdateFile(['csv', 'b.csv'], false, 0)
-		// 	]),
-		// 	new UpdateData('test2', ['csv'], 5000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 2)]),
-		// 	new UpdateData('test', [], 6000, 1000, [new UpdateFile(['csv'], true, 2), new UpdateFile(['csv', 'b.csv'], false, 2)],),
-		// 	new UpdateData('test2', ['json'], 7000, 2000, [
-		// 		new UpdateFile(['json', 'test.json'], false, 0),
-		// 		new UpdateFile(['json', 'statham.json'], false, 1),
-		// 		new UpdateFile(['json', 'config'], true, 0),
-		// 		new UpdateFile(['json', 'stat.json'], false, 2),
-		// 		new UpdateFile(['json', 'a.json'], false, 0)
-		// 	]),
-		// 	new UpdateData('test2', [], 9000, 2000, [
-		// 		new UpdateFile(['js'], true, 0),
-		// 		new UpdateFile(['js', 'index.js'], false, 0),
-		// 		new UpdateFile(['js', 'vertex.js'], false, 0),
-		// 		new UpdateFile(['json', 'config', 'config.json'], false, 0),
-		// 		new UpdateFile(['js', 'canvas.js'], false, 0),
-		// 		new UpdateFile(['js', 'graph.js'], false, 0)
-		// 	]),
-		// 	new UpdateData('test2', ['json', 'config'], 11000, 2000, [new UpdateFile(['json', 'config', 'config.json'], false, 2)])
-		// ]);
 
 		this.canvas = new Canvas();
 		this.aspectRatioBalance = this.canvas.height / this.canvas.width;
-		// this.drawScene();
+
+		this.validateForm();
 	}
 
-	loadGraph = () => {
-		const req = new XMLHttpRequest();
+	validateForm = () => {
+		let res = true;
+		// console.log(document.getElementById('path-input').value === '');
+		if (document.getElementById('path-input').value === '') {
+			res = false;
+		}
+		// console.log(res && (document.getElementById('day-length-input').value === '' || !document.getElementById('day-length-input').value.match('\d+')));
+		// console.log(document.getElementById('day-length-input').value, document.getElementById('day-length-input').value.match());
+		if (res && (document.getElementById('day-length-input').value === '' ||
+			!document.getElementById('day-length-input').value.match('^[0-9]+$'))) {
+			res = false;
+		}
+		// console.log(res && (document.getElementById('max-commit-length-input').value === '' || !document.getElementById('max-commit-length-input').value.match('\d+')));
+		if (res && (document.getElementById('max-commit-length-input').value === '' ||
+			!document.getElementById('max-commit-length-input').value.match('^[0-9]+$'))) {
+			res = false;
+		}
+		// console.log(res && (document.getElementById('skip-length-input').value === '' || !document.getElementById('skip-length-input').match('\d+')));
+		if (res && (document.getElementById('skip-length-input').value === '' ||
+			!document.getElementById('skip-length-input').value.match('^[0-9]+$'))) {
+			res = false;
+		}
+		document.getElementById('repo-submit').disabled = !res;
+		return res;
+	};
 
+	loadGraph = () => {
+		let repoType = document.getElementById('repo-type-select').value, dayDuration, maxCommitDuration, path;
+		path = document.getElementById('path-input').value;
+		dayDuration = document.getElementById('day-length-input').value;
+		maxCommitDuration = document.getElementById('max-commit-length-input').value;
+		this.processing = true;
+		const req = new XMLHttpRequest();
+		req.open('POST', '/api/repository');
+		req.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+		req.send('repoType=' + repoType + '&path=' + path + '&dayDuration=' + dayDuration + '&maxCommitDuration=' + maxCommitDuration);
 		req.onreadystatechange = () => {
 			if (req.readyState === XMLHttpRequest.DONE) {
 				console.log(req.response.body);
 				if (req.status === 200) {
-					this.graph = new Graph([
-						new UpdateData('test', [], 1000, 1000, [new UpdateFile(['json', 'statham.json'], false, 0)]),
-						new UpdateData('test', ['json'], 2000, 1000, [new UpdateFile(['json', 'stat.json'], false, 0)]),
-						new UpdateData('test', ['json'], 3000, 1000, [new UpdateFile(['json', 'stat.json'], false, 1), new UpdateFile(['json', 'statham.json'], false, 1)]),
-						new UpdateData('test2', [], 4000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 0),
-							new UpdateFile(['csv', 'b.csv'], false, 0)
-						]),
-						new UpdateData('test2', ['csv'], 5000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 2)]),
-						new UpdateData('test', [], 6000, 1000, [new UpdateFile(['csv'], true, 2), new UpdateFile(['csv', 'b.csv'], false, 2)],),
-						new UpdateData('test2', ['json'], 7000, 2000, [
-							new UpdateFile(['json', 'test.json'], false, 0),
-							new UpdateFile(['json', 'statham.json'], false, 1),
-							new UpdateFile(['json', 'config'], true, 0),
-							new UpdateFile(['json', 'stat.json'], false, 2),
-							new UpdateFile(['json', 'a.json'], false, 0)
-						]),
-						new UpdateData('test2', [], 9000, 2000, [
-							new UpdateFile(['js'], true, 0),
-							new UpdateFile(['js', 'index.js'], false, 0),
-							new UpdateFile(['js', 'vertex.js'], false, 0),
-							new UpdateFile(['json', 'config', 'config.json'], false, 0),
-							new UpdateFile(['js', 'canvas.js'], false, 0),
-							new UpdateFile(['js', 'graph.js'], false, 0)
-						]),
-						new UpdateData('test2', ['json', 'config'], 11000, 2000, [new UpdateFile(['json', 'config', 'config.json'], false, 2)])
-					]);
-					this.canvas.graph = this.graph;
-					this.canvas.initBuffers();
-					this.drawScene();
+					// this.graph = new Graph([
+					// 	new UpdateData('test', [], 1000, 1000, [new UpdateFile(['json', 'statham.json'], false, 0)]),
+					// 	new UpdateData('test', ['json'], 2000, 1000, [new UpdateFile(['json', 'stat.json'], false, 0)]),
+					// 	new UpdateData('test', ['json'], 3000, 1000, [new UpdateFile(['json', 'stat.json'], false, 1),
+					// 		new UpdateFile(['json', 'statham.json'], false, 1)]),
+					// 	new UpdateData('test2', [], 4000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 0),
+					// 		new UpdateFile(['csv', 'b.csv'], false, 0)
+					// 	]),
+					// 	new UpdateData('test2', ['csv'], 5000, 1000, [new UpdateFile(['csv', 'a.csv'], false, 2)]),
+					// 	new UpdateData('test', [], 6000, 1000, [new UpdateFile(['csv'], true, 2), new UpdateFile(['csv', 'b.csv'], false, 2)],),
+					// 	new UpdateData('test2', ['json'], 7000, 2000, [
+					// 		new UpdateFile(['json', 'test.json'], false, 0),
+					// 		new UpdateFile(['json', 'statham.json'], false, 1),
+					// 		new UpdateFile(['json', 'config'], true, 0),
+					// 		new UpdateFile(['json', 'stat.json'], false, 2),
+					// 		new UpdateFile(['json', 'a.json'], false, 0)
+					// 	]),
+					// 	new UpdateData('test2', [], 9000, 2000, [
+					// 		new UpdateFile(['js'], true, 0),
+					// 		new UpdateFile(['js', 'index.js'], false, 0),
+					// 		new UpdateFile(['js', 'vertex.js'], false, 0),
+					// 		new UpdateFile(['json', 'config', 'config.json'], false, 0),
+					// 		new UpdateFile(['js', 'canvas.js'], false, 0),
+					// 		new UpdateFile(['js', 'graph.js'], false, 0)
+					// 	]),
+					// 	new UpdateData('test2', ['json', 'config'], 11000, 2000, [new UpdateFile(['json', 'config', 'config.json'], false, 2)])
+					// ]);
+					// this.canvas.graph = this.graph;
+					// this.canvas.initBuffers();
+					// this.drawScene();
 				} else {
 					// handle error
 				}
+				this.processing = false;
 			}
 		};
 	};

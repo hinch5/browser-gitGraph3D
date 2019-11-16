@@ -94,12 +94,12 @@ func parseRepositoryHandler(local bool) http.HandlerFunc {
 			writeError(w, 400, err.Error())
 			return
 		}
-		dayLength, err := validateInt64(r.PostForm, "dayLength", 100)
+		dayLength, err := validateInt64(r.PostForm, "dayDuration", 100)
 		if err != nil {
 			writeError(w, 400, err.Error())
 			return
 		}
-		maxCommitLength, err := validateInt64(r.PostForm, "maxCommitLength", 100)
+		maxCommitLength, err := validateInt64(r.PostForm, "maxCommitDuration", 100)
 		if err != nil {
 			writeError(w, 400, err.Error())
 			return
@@ -112,6 +112,7 @@ func parseRepositoryHandler(local bool) http.HandlerFunc {
 			}
 			res, err := readLocalRepository(path, dayLength, maxCommitLength)
 			if err != nil {
+				log.Printf("read local repository err: %v\n", err)
 				writeError(w, 500, "read repo failed")
 				return
 			}
