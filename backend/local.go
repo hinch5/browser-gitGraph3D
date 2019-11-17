@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+type Response struct {
+	StartDate float64        `json:"startDate"`
+	Updates   []GitOperation `json:"updates"`
+}
+
 type GitOperation struct {
 	Dir       []string           `json:"dir"`
 	Duration  float64            `json:"duration"`
@@ -53,7 +58,6 @@ func (operation *GitOperation) calcOperationDir() {
 func calcOperationsDuration(operations []GitOperation, dayDuration, maxCommitDuration float64) {
 	maxCommits := int(math.Ceil(dayDuration / maxCommitDuration))
 	i, j, date := 0, 0, 0.0
-	//log.Println(operations)
 	for i < len(operations) {
 		operations[i].StartDate = date
 		for j = i; j < len(operations) &&
@@ -88,7 +92,7 @@ func calcOperationsDuration(operations []GitOperation, dayDuration, maxCommitDur
 	}
 }
 
-func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res []GitOperation, err error) {
+func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res *Response, err error) {
 	cmd := exec.Command("git", "log", "--name-status", "--first-parent", "-m", "--reverse", "--date=unix")
 	cmd.Dir = path
 	reader, err := cmd.StdoutPipe()
@@ -101,6 +105,7 @@ func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res
 	}
 	defer reader.Close()
 	scanner := bufio.NewScanner(reader)
+	res = new(Response)
 	for {
 		if scanner.Scan() {
 			line := scanner.Text()
@@ -120,9 +125,13 @@ func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res
 					StartTime: time.Unix(date, 0),
 					Updates:   files,
 				}
+				if len(res.Updates) == 0 {
+					t := operation.StartTime
+					res.StartDate = float64(time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()).Unix())*1000
+				}
 				// calc dir
 				operation.calcOperationDir()
-				res = append(res, operation)
+				res.Updates = append(res.Updates, operation)
 			} else {
 				return nil, errors.New(fmt.Sprintf("git log unexpected word. expected: commit. got: %s", line))
 			}
@@ -133,7 +142,7 @@ func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res
 	if err := cmd.Wait(); err != nil {
 		return nil, errors.New(fmt.Sprintf("wait git log err: %v", err))
 	}
-	calcOperationsDuration(res, float64(dayDuration), float64(maxCommitDuration))
+	calcOperationsDuration(res.Updates, float64(dayDuration), float64(maxCommitDuration))
 	return
 }
 

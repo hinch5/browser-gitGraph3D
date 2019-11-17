@@ -22,7 +22,6 @@ const SKIP_COORDS = 1;
 const GRAPH_WIDTH = 1.4;
 const GRAPH_HEIGHT = 1.4;
 const GRAPH_DEPTH = 1.4;
-const SPEED = 3600 * 24;
 
 class WorkSpace {
 	angles;
@@ -100,17 +99,20 @@ class WorkSpace {
 			if (req.readyState === XMLHttpRequest.DONE) {
 				if (req.status === 200) {
 					const resp = JSON.parse(req.response);
+					this.begin = resp.startDate;
+					console.log(this.begin, new Date(this.begin));
+					const respUpdates = resp.updates;
 					const updates = [];
-					for (let i = 0; i < resp.length; i++) {
+					for (let i = 0; i < respUpdates.length; i++) {
 						const fileUpdates = [];
-						for (let j = 0; j < resp[i].updates.length; j++) {
-							fileUpdates.push(new UpdateFile(resp[i].updates[j].file, false, resp[i].updates[j].action))
+						for (let j = 0; j < respUpdates[i].updates.length; j++) {
+							fileUpdates.push(new UpdateFile(respUpdates[i].updates[j].file, false, respUpdates[i].updates[j].action))
 						}
 						updates.push(new UpdateData(
-							resp[i].name,
-							resp[i].dir,
-							resp[i].startDate,
-							resp[i].duration,
+							respUpdates[i].name,
+							respUpdates[i].dir,
+							respUpdates[i].startDate,
+							respUpdates[i].duration,
 							fileUpdates
 						));
 					}
@@ -171,10 +173,10 @@ class WorkSpace {
 		if (this.skip !== 0) {
 			const skip = this.graph.checkSkip();
 			if (skip > this.skip) {
-				delta += skip - this.dayDuration / 4;
+				delta = skip;
 			}
 		}
-		this.begin += SPEED * delta;
+		this.begin += delta*(24*3600*1000/this.dayDuration);
 		let model = glMatrix.mat4.create(), view = glMatrix.mat4.create(), normalModel = glMatrix.mat4.create();
 		glMatrix.mat4.fromScaling(model, glMatrix.vec3.fromValues(this.aspectRatioBalance, 1, 1));
 		glMatrix.mat4.rotateX(model, model, glMatrix.glMatrix.toRadian(this.angles[0]));
