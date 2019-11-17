@@ -100,7 +100,6 @@ class WorkSpace {
 				if (req.status === 200) {
 					const resp = JSON.parse(req.response);
 					this.begin = resp.startDate;
-					console.log(this.begin, new Date(this.begin));
 					const respUpdates = resp.updates;
 					const updates = [];
 					for (let i = 0; i < respUpdates.length; i++) {
