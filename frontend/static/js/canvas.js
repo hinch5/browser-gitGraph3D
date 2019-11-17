@@ -46,7 +46,6 @@ class Canvas {
 		
 		this.graphProgram = new Program(this.GL, 'vertex-shader', 'fragment-shader');
 		this.edgeProgram = new Program(this.GL, 'vertex-simple-shader', 'fragment-shader');
-		// this.initShaders('vertex-shader', 'fragment-shader');
 	}
 
 	calcFont = () => {
@@ -109,7 +108,7 @@ class Canvas {
 		this.GL.vertexAttribPointer(this.edgeProgram.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
 		this.GL.vertexAttribPointer(this.edgeProgram.colorAttrib, 4, this.GL.FLOAT, true, 0, 0);
-		// this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
 		
 		this.GL.drawElements(this.GL.LINES, this.graph.edgeIndices.length, this.GL.UNSIGNED_SHORT, 0);
 

@@ -100,7 +100,7 @@ class Graph {
 		this.contributors = [];
 		this.orderedVertices = [];
 		this.updates = [new UpdateData('', [], 0, 1000, [])].concat(updates);  // init update
-		this.now = 1;
+		this.now = 0;
 		this.updateIndex = 0;
 		this.buildNormals();
 		this.splitSpace(1000);
@@ -210,13 +210,11 @@ class Graph {
 	};
 	iterate = (delta) => {
 		if (this.updateIndex < this.updates.length) {
-			if (this.now <= this.updates[this.updateIndex].startDate) {
-				if (this.now + delta >= this.updates[this.updateIndex].startDate) {
-					this.startUpdate();
-					this.splitSpace(this.updates[this.updateIndex].duration);
-					this.buildCoords(Math.min(this.now + delta - this.updates[this.updateIndex].startDate,
-						this.updates[this.updateIndex].expireDate - this.updates[this.updateIndex].startDate));
-				}
+			if (this.now < this.updates[this.updateIndex].startDate && this.now + delta >= this.updates[this.updateIndex].startDate) {
+				this.startUpdate();
+				this.splitSpace(this.updates[this.updateIndex].duration);
+				this.buildCoords(Math.min(this.now + delta - this.updates[this.updateIndex].startDate,
+					this.updates[this.updateIndex].expireDate - this.updates[this.updateIndex].startDate));
 			} else {
 				this.buildCoords(Math.min(this.now + delta - this.updates[this.updateIndex].startDate,
 					this.updates[this.updateIndex].expireDate - this.updates[this.updateIndex].startDate));  // from operation start
@@ -251,8 +249,10 @@ class Graph {
 		return parent;
 	};
 	addElement = (parent, path, isDir, pathInd) => {
+		// console.log('append child 1', this.updateIndex, path, pathInd);
 		const res = [];
 		let p = this.findDir(parent, path, pathInd);
+		// console.log('append child 2', this.updateIndex, p.path, p.isDir);
 		for (let i = p.path.length; i < path.length - 1; i++) {
 			const child = new GitObject(path.slice(0, i + 1), true, p.level + 1, p);
 			if (this.heightMap.has(p.level + 2)) {
@@ -265,6 +265,7 @@ class Graph {
 			res.push(child);
 			p = child;
 		}
+		// console.log('append child 3', this.updateIndex, path, pathInd);
 		const lastChild = new GitObject(path, isDir, p.level + 1, p);
 		p.addChild(lastChild);
 		res.push(lastChild);
@@ -317,6 +318,7 @@ class Graph {
 			const vertexSet = stack.pop();
 			if (vertexSet[0].length === 1) {
 				if (vertexSet[0][0].haveContributor()) {
+					// console.log('split contributor', vertexSet[0][0].contributor.level, vertexSet[0][0].contributor.dir.path, this.height);
 					const rectSplitted = vertexSet[1].split(0.5);
 					if (vertexSet[0][0].contributor.coords) {
 						vertexSet[0][0].contributor.calcAcceleration(this.height, skip, rectSplitted[1], duration);
