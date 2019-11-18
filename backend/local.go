@@ -93,7 +93,7 @@ func calcOperationsDuration(operations []GitOperation, dayDuration, maxCommitDur
 }
 
 func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res *Response, err error) {
-	cmd := exec.Command("git", "log", "--name-status", "--first-parent", "-m", "--reverse", "--date=unix")
+	cmd := exec.Command("git", "log", "--name-status", "--first-parent", "-m", "--reverse", fmt.Sprintf("--format=%%ncommit: %%H%%nAuthor: %%an %%ae%%nDate: %%at"))
 	cmd.Dir = path
 	reader, err := cmd.StdoutPipe()
 	if err != nil {
@@ -106,6 +106,8 @@ func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res
 	defer reader.Close()
 	scanner := bufio.NewScanner(reader)
 	res = new(Response)
+	scanner.Scan()
+	scanner.Text()
 	for {
 		if scanner.Scan() {
 			line := scanner.Text()
@@ -127,13 +129,13 @@ func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res
 				}
 				if len(res.Updates) == 0 {
 					t := operation.StartTime
-					res.StartDate = float64(time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()).Unix())*1000
+					res.StartDate = float64(time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()).Unix()) * 1000
 				}
 				// calc dir
 				operation.calcOperationDir()
 				res.Updates = append(res.Updates, operation)
 			} else {
-				return nil, errors.New(fmt.Sprintf("git log unexpected word. expected: commit. got: %s", line))
+				return nil, errors.New(fmt.Sprintf("git log unexpected word. expected: commit. got: %s%v", line, string(line[0])))
 			}
 		} else {
 			break
@@ -177,38 +179,25 @@ func readDate(in *bufio.Scanner) (date int64, files []GitOperationFile, err erro
 			if err != nil {
 				return 0, nil, errors.New(fmt.Sprintf("git log parse date err: %s %v", line, err))
 			}
-			files, err = readCommitName(in)
-			return
+			if in.Scan() {
+				line = in.Text()
+				if in.Err() != nil {
+					return 0, nil, errors.New(fmt.Sprintf("git log read line after date err: %v", in.Err()))
+				}
+				if line != "" {
+					return 0, nil, errors.New(fmt.Sprintf("get log read line after date unexpected: %s", line))
+				}
+				files, err = readGitOperationFile(in)
+				return
+			} else {
+				return 0, nil, errors.New("git log read line after date unexpected scan end")
+			}
 		} else {
 			return 0, nil, errors.New(fmt.Sprintf("git log unexpected word. expected: Date.got: %s", line))
 		}
 	} else {
 		return 0, nil, errors.New("unexpected false scan(date)")
 	}
-}
-
-func readCommitName(in *bufio.Scanner) (files []GitOperationFile, err error) {
-	if in.Scan() {
-		line := in.Text()
-		if in.Err() != nil {
-			return nil, errors.New(fmt.Sprintf("git log read commit name line err: %v", in.Err()))
-		}
-		if line == "" {
-			return readCommitName(in)
-		} else if line != "" {
-			if in.Scan() {
-				if in.Err() != nil {
-					return nil, errors.New(fmt.Sprintf("git log read commit name2 line err: %v", in.Err()))
-				}
-				return readGitOperationFile(in)
-			} else {
-				return nil, errors.New("unexpected false scan(commit name2)")
-			}
-		}
-	} else {
-		return nil, errors.New("unexpected false scan(commit name)")
-	}
-	return
 }
 
 func readGitOperationFile(in *bufio.Scanner) (files []GitOperationFile, err error) {
@@ -259,6 +248,8 @@ func readGitOperationFile(in *bufio.Scanner) (files []GitOperationFile, err erro
 			}
 			files = append(files, GitOperationFile{Action: 2, File: strings.Split(splitted[1], "/")},
 				GitOperationFile{Action: 0, File: strings.Split(splitted[2], "/")})
+		} else {
+			return nil, errors.New(fmt.Sprintf("unexpected file. got: %s", line))
 		}
 	}
 	if len(files) == 0 {
