@@ -16,6 +16,9 @@ class Rect3D {
 	}
 
 	split = (percent) => {
+		if (percent >= 1) {
+			console.log('what??');
+		}
 		if (this.width >= this.height) {
 			const newWidth = this.width * percent;
 			return [
@@ -56,7 +59,6 @@ class Vertex {
 	centerZ;
 	radius;
 	coords;
-	beginCoords;
 	normals;
 	indices;
 	colors;
@@ -68,6 +70,8 @@ class Vertex {
 	removeSpeed;
 	removing;
 	time;
+	distance;
+
 	constructor(level) {
 		this.level = level;
 		this.acceleration = null;
@@ -76,16 +80,17 @@ class Vertex {
 		this.removing = false;
 		this.color = [0.0, 1.0, 0.0, 1.0];
 	}
-	buildSphere = (height, skip) => {
+
+	buildSphere = (height, skip, radius) => {
 		this.coords = [];
 		this.colors = [];
 		let x, y, z, xz;
 		this.centerX = this.boundRect.centerX;
-		this.centerY = GRAPH_HEIGHT/2 - (this.level*(GRAPH_HEIGHT/height)) - (GRAPH_HEIGHT/(2*height));
+		this.centerY = GRAPH_HEIGHT / 2 - (this.level * (GRAPH_HEIGHT / height)) - (GRAPH_HEIGHT / (2 * height));
 		this.centerZ = this.boundRect.centerY;
-		const minRect = Math.min(this.boundRect.width, this.boundRect.height, GRAPH_HEIGHT/(2*height));
-		if (SPHERE_RADIUS <= minRect) {
-			this.radius = SPHERE_RADIUS;
+		const minRect = Math.min(this.boundRect.width/2, this.boundRect.height/2, GRAPH_HEIGHT / (4 * height));
+		if (radius <= minRect) {
+			this.radius = radius;
 		} else {
 			this.radius = minRect;
 		}
@@ -107,7 +112,6 @@ class Vertex {
 		this.buildIndices(skip);
 		this.coords.push(this.centerX, this.centerY, this.centerZ, 1.0);
 		this.colors.push(1.0, 1.0, 1.0, 1.0);
-		this.beginCoords = this.coords.slice();
 	};
 	buildIndices = (skip) => {
 		this.indices = [];
@@ -126,45 +130,54 @@ class Vertex {
 		}
 	};
 
-	move = (delta) => {
-		if (this.acceleration) {
+	calcMoves = (delta) => {
+		if (delta < this.time / 2) {
 			const tSquare = delta * delta;
-			if (delta <= this.time/2) {
-				for (let i = 0; i < 3; i++) {
-					for (let j = 0; j < this.coords.length/4; j++) {
-						this.coords[4*j+i] = this.beginCoords[4*j+i] + this.acceleration[i]*tSquare/2;
-					}
-				}
-			}  else {
-				for (let i = 0; i < 3; i++) {
-					for (let j = 0; j < this.coords.length/4; j++) {
-						this.coords[4*j+i] = this.beginCoords[4*j+i] +
-							this.acceleration[i]*this.time*this.time/8 +
-							this.acceleration[i]*(this.time/2)*(delta - this.time/2) -
-							this.acceleration[i]*(delta - this.time/2)*(delta - this.time/2)/2;
-					}
+			return [this.acceleration[0] * tSquare / 2, this.acceleration[1] * tSquare / 2, this.acceleration[2] * tSquare / 2];
+		} else {
+			const t = (delta - this.time / 2);
+			const t2 = t * t;
+			return [this.acceleration[0] * this.time * this.time / 8 + this.acceleration[0] * (this.time / 2) * t - this.acceleration[0] * t2 / 2,
+				this.acceleration[1] * this.time * this.time / 8 + this.acceleration[1] * (this.time / 2) * t - this.acceleration[1] * t2 / 2,
+				this.acceleration[2] * this.time * this.time / 8 + this.acceleration[2] * (this.time / 2) * t - this.acceleration[2] * t2 / 2];
+		}
+	};
+	move = (coords, colors, delta) => {
+		if (this.acceleration) {
+			const moves = this.calcMoves(delta);
+			for (let i = 0; i < 3; i++) {
+				for (let j = 0; j < this.coords.length / 4; j++) {
+					coords[4 * (j + this.skip) + i] = this.coords[4 * j + i] + moves[i];
 				}
 			}
 		}
 		if (this.transparencySpeed) {
-			for (let i = 0; i < this.colors.length/4-1; i++) {
-				this.colors[i*4 + 1] = delta*this.transparencySpeed;
+			for (let i = 0; i < this.colors.length / 4 - 1; i++) {
+				colors[(i + this.skip) * 4 + 1] = delta * this.transparencySpeed;
 			}
 		}
 		if (this.removeSpeed) {
-			for (let i = 0; i < this.colors.length/4-1; i++) {
-				this.colors[i*4 + 1] = 1.0 - delta*this.removeSpeed;
+			for (let i = 0; i < this.colors.length / 4 - 1; i++) {
+				colors[(i + this.skip) * 4 + 1] = 1.0 - delta * this.removeSpeed;
 			}
 		}
 	};
+	isMoving = () => {
+		return (this.acceleration && (this.acceleration[0] !== 0 || this.acceleration[1] !== 0 || this.acceleration[2] !== 0)
+			|| (this.transparencySpeed && this.transparencySpeed !== 0) || (this.removeSpeed && this.removeSpeed !== 0));
+	};
 
-	calcAcceleration = (height, skip, rect, t) => {
+	calcAcceleration = (height, skip, radius, rect, t) => {
+		if (this.radius !== radius) {
+			this.buildSphere(height, skip, radius);
+		}
 		this.buildIndices(skip);
 		const centerX = rect.centerX;
-		const centerY = GRAPH_HEIGHT/2 - (this.level*(GRAPH_HEIGHT/height)) - (GRAPH_HEIGHT/(2*height));
+		const centerY = GRAPH_HEIGHT / 2 - (this.level * (GRAPH_HEIGHT / height)) - (GRAPH_HEIGHT / (2 * height));
 		const centerZ = rect.centerY;
 		const tSquare = t * t;
-		this.acceleration = [4*(centerX-this.centerX)/tSquare, 4*(centerY-this.centerY)/tSquare, 4*(centerZ-this.centerZ)/tSquare];
+		this.distance = [centerX - this.centerX, centerY - this.centerY, centerZ - this.centerZ];
+		this.acceleration = [4 * this.distance[0] / tSquare, 4 * this.distance[1] / tSquare, 4 * this.distance[2] / tSquare];
 		this.centerX = centerX;
 		this.centerY = centerY;
 		this.centerZ = centerZ;
@@ -173,36 +186,53 @@ class Vertex {
 	};
 
 	resetAcceleration = () => {
+		if (this.acceleration) {
+			for (let i = 0; i < this.coords.length / 4; i++) {
+				this.coords[4 * i] += this.distance[0];
+				this.coords[4 * i + 1] += this.distance[1];
+				this.coords[4 * i + 2] += this.distance[2];
+			}
+		}
 		this.acceleration = null;
-		this.beginCoords = this.coords.slice();
 	};
 
-	calcTransparencySpeed = (height, skip, t) => {
-		this.buildSphere(height, skip);
-		this.transparencySpeed = 1.0/t;
+	calcTransparencySpeed = (height, skip, radius, t) => {
+		this.buildSphere(height, skip, radius);
+		this.transparencySpeed = 1.0 / t;
 		this.time = t;
 	};
 
 	resetTransparencySpeed = () => {
+		if (this.transparencySpeed) {
+			for (let i = 0; i < this.colors.length / 4 - 1; i++) {
+				this.colors[i * 4 + 1] = 1.0;
+			}
+		}
 		this.transparencySpeed = null;
-		this.beginCoords = this.coords.slice();
 	};
-	
-	calcRemoveSpeed = (skip, t) => {
+
+	calcRemoveSpeed = (height, skip, radius, t) => {
+		if (this.radius !== radius) {
+			this.buildSphere(height, skip, radius);
+		}
 		this.buildIndices(skip);
-		this.removeSpeed = 1.0/t;
+		this.removeSpeed = 1.0 / t;
 		this.time = t;
 	};
-	
+
 	resetRemoveSpeed = () => {
+		if (this.removeSpeed) {
+			for (let i = 0; i < this.colors.length / 4 - 1; i++) {
+				this.colors[i * 4 + 1] = 0.0;
+			}
+		}
 		this.removeSpeed = null;
-		this.beginCoords = this.coords.slice();
 	};
 
 	set boundRect(rect) {
 		this.boundRect = rect;
 	}
-	
+
 	set level(level) {
 		this.level = level;
 	}
@@ -210,7 +240,7 @@ class Vertex {
 	set removing(removing) {
 		this.removing = removing;
 	}
-	
+
 	set parent(parent) {
 		this.parent = parent;
 	}
@@ -252,13 +282,14 @@ class Vertex {
 	}
 }
 
-class GitContributor extends Vertex{
+class GitContributor extends Vertex {
 	name;
 	updates;
 	dir;
 	edgeCoords;
 	edgeColors;
 	edgeNormals;
+
 	constructor(name) {
 		super(0);
 		this.name = name;
@@ -266,14 +297,18 @@ class GitContributor extends Vertex{
 		this.edgeColors = [];
 		this.color = [1.0, 0.0, 0.0, 1.0];
 	}
-	buildEdges = () => {
+
+	buildEdges = (coords) => {
 		this.edgeCoords = [];
 		this.edgeColors = [];
 		this.edgeNormals = [];
 		for (let i = 0; i < this.updates.length; i++) {
 			for (let j = 0; j < this.updates[i].vertexSet.length; j++) {
-				this.edgeCoords = this.edgeCoords.concat(this.coords.slice(this.coords.length-4));
-				this.edgeCoords = this.edgeCoords.concat(this.updates[i].vertexSet[j].coords.slice(this.updates[i].vertexSet[j].coords.length-4));
+				this.edgeCoords = this.edgeCoords.concat(coords.slice(this.skip * 4 + this.coords.length - 4, this.skip * 4 + this.coords.length));
+				this.edgeCoords = this.edgeCoords.concat(coords.slice(
+					this.updates[i].vertexSet[j].skip * 4 + this.updates[i].vertexSet[j].coords.length - 4,
+					this.updates[i].vertexSet[j].skip * 4 + this.updates[i].vertexSet[j].coords.length)
+				);
 				if (this.updates[i].action === 0) {
 					this.edgeColors = this.edgeColors.concat([0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]);
 				} else if (this.updates[i].action === 1) {
@@ -285,27 +320,33 @@ class GitContributor extends Vertex{
 			}
 		}
 	};
+
 	get name() {
 		return this.name;
 	}
+
 	get edgeCoords() {
 		return this.edgeCoords;
 	}
+
 	get edgeColors() {
 		return this.edgeColors;
 	}
+
 	get edgeNormals() {
 		return this.edgeNormals;
 	}
+
 	set dir(dir) {
 		this.dir = dir;
 	}
+
 	set updates(updates) {
 		this.updates = updates;
 	}
 }
 
-class GitObject extends Vertex{
+class GitObject extends Vertex {
 	isDir;
 	children;
 	size;
@@ -320,57 +361,51 @@ class GitObject extends Vertex{
 		this.parent = parent;
 		this.size = 1;
 	}
-
-	childComparator = (a, b) => {
-		if (a.size < b.size) {
-			return 1;
-		} else if (a.size === b.size) {
-			return 0;
-		} else {
-			return -1;
-		}
-	};
+	
 	addChild = (child) => {
-		let insertInd = 0;
-		for (let i = 0; i < this.children.length; i++) {
-			if (this.children[i].size > child.size) {
-				insertInd = i;
+		let l = 0, r = this.children.length, m = Math.floor(r/2);
+		const cmpInd = this.path.length;
+		if (this.children.length === 0) {
+			this.children.splice(0, 0, child);
+		} else if (child.path[cmpInd] < this.children[0].path[cmpInd]) {
+			this.children.splice(0, 0, child);
+		} else {
+			while (l < r - 1) {
+				if (child.path[cmpInd] < this.children[m].path[cmpInd]) {
+					r = m;
+				} else {
+					l = m;
+				}
+				m = Math.floor((r+l)/2);
 			}
+			this.children.splice(r, 0, child);
 		}
-		this.children.splice(insertInd, 0, child);
 		let p = this;
 		for (; p.parent !== null; p = p.parent) {
 			p.addSize(child.size);
-			p.children.sort(this.childComparator);
 		}
 		p.addSize(child.size);
-		p.children.sort(this.childComparator);
 	};
 	removeChild = (child) => {
-		for (let i = 0; i < this.children.length; i++) {
-			if (this.children[i].equals(child)) {
-				this.children.splice(i, 1);
-				let p = this;
-				for (; p.parent !== null; p = p.parent) {
-					p.addSize(-child.size);
-					p.children.sort(this.childComparator);
-				}
-				p.addSize(-child.size);
-				p.children.sort(this.childComparator);
-				child.parent = null;
+		let l = 0, r = this.children.length, m = Math.floor(r/2);
+		const cmpInd = child.path.length-1;
+		while (l < r - 1) {
+			if (this.children[m].path[cmpInd] === child.path[cmpInd]) {
+				break;
+			} else if (child.path[cmpInd] < this.children[m].path[cmpInd]) {
+				r = m;
+			} else {
+				l = m;
 			}
+			m = Math.floor((r+l)/2);
 		}
-	};
-	equals = (vertex) => {
-		if (this.path.length !== vertex.path.length) {
-			return false;
+		this.children.splice(m, 1);
+		let p = this;
+		for (; p.parent !== null; p = p.parent) {
+			p.addSize(-child.size);
 		}
-		for (let i = 0; i < this.path.length; i++) {
-			if (this.path[i] !== vertex.path[i]) {
-				return false;
-			}
-		}
-		return true;
+		p.addSize(-child.size);
+		child.parent = null;
 	};
 	addSize = (a) => {
 		this.size += a;

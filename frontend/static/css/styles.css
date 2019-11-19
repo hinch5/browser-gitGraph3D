@@ -25,17 +25,22 @@
     border: 0;
     z-index: 2;
 }
-.manager-form {
+.manager-form, .manager-load {
     min-width: 800px;
     width: 60%;
     min-height: 300px;
     height: 25%;
     align-self: center;
     justify-self: center;
-    z-index: 3;
     background-color: #FFFFFF;
     display: grid;
     grid-template-rows: 70% 30%;
+}
+.manager-form {
+    z-index: 3;
+}
+.manager-load {
+    z-index: 4;
 }
 
 .form-input {

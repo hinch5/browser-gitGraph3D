@@ -31,20 +31,57 @@ type GitOperationFile struct {
 	File   []string `json:"file"`
 }
 
+type Scanner struct {
+	current bool
+	line string
+	scanner *bufio.Scanner
+}
+
+func newScanner(s *bufio.Scanner) *Scanner {
+	return &Scanner{scanner: s}
+}
+
+func (s *Scanner) Scan() bool {
+	return s.scanner.Scan()
+}
+
+func (s *Scanner) Line() string {
+	s.line = s.scanner.Text()
+	s.current = true
+	return s.line
+}
+
+func (s *Scanner) Err() error {
+	return s.scanner.Err()
+}
+
+func (s *Scanner) HaveCurrentLine() bool {
+	return s.current
+}
+
+func (s *Scanner) ResetCurrentLine() {
+	s.current = false
+}
+
+func (s *Scanner) CurrentLine() string {
+	return s.line
+}
+
 func (operation *GitOperation) calcOperationDir() {
 	i := 0
 	for {
 		candidate := ""
 		for _, u := range operation.Updates {
 			if len(u.File)-1 < i+1 {
+				candidate = ""
 				break
-			}
-			if candidate == "" {
-				candidate = u.File[i]
 			}
 			if candidate != "" && candidate != u.File[i] {
 				candidate = ""
 				break
+			}
+			if candidate == "" {
+				candidate = u.File[i]
 			}
 		}
 		if candidate == "" {
@@ -56,7 +93,7 @@ func (operation *GitOperation) calcOperationDir() {
 }
 
 func calcOperationsDuration(operations []GitOperation, dayDuration, maxCommitDuration float64) {
-	maxCommits := int(math.Ceil(dayDuration / maxCommitDuration))
+	maxCommits := int(math.Floor(dayDuration / maxCommitDuration))
 	i, j, date := 0, 0, 0.0
 	for i < len(operations) {
 		operations[i].StartDate = date
@@ -84,16 +121,14 @@ func calcOperationsDuration(operations []GitOperation, dayDuration, maxCommitDur
 			first, second := operations[j-1].StartTime, operations[j].StartTime
 			first = time.Date(first.Year(), first.Month(), first.Day(), 0, 0, 0, 0, first.Location())
 			second = time.Date(second.Year(), second.Month(), second.Day(), 0, 0, 0, 0, second.Location())
-			//log.Println(first, second)
-			date += dayDuration * second.Sub(first).Hours() / 24
-			//log.Println(date)
+			date += dayDuration*(second.Sub(first).Hours()/24)
 		}
 		i = j
 	}
 }
 
 func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res *Response, err error) {
-	cmd := exec.Command("git", "log", "--name-status", "--first-parent", "-m", "--reverse", fmt.Sprintf("--format=%%ncommit: %%H%%nAuthor: %%an %%ae%%nDate: %%at"))
+	cmd := exec.Command("git", "log", "--name-status", "--first-parent", "-m", "--reverse", fmt.Sprintf("--format=commit: %%H%%nAuthor: %%an %%ae%%nDate: %%at"))
 	cmd.Dir = path
 	reader, err := cmd.StdoutPipe()
 	if err != nil {
@@ -104,13 +139,17 @@ func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res
 		return nil, errors.New(fmt.Sprintf("start git log err: %v", err))
 	}
 	defer reader.Close()
-	scanner := bufio.NewScanner(reader)
+	scanner := newScanner(bufio.NewScanner(reader))
 	res = new(Response)
-	scanner.Scan()
-	scanner.Text()
 	for {
-		if scanner.Scan() {
-			line := scanner.Text()
+		if scanner.HaveCurrentLine() || scanner.Scan() {
+			var line string
+			if scanner.HaveCurrentLine() {
+				line = scanner.CurrentLine()
+			} else {
+				line = scanner.Line()
+			}
+			scanner.ResetCurrentLine()
 			if scanner.Err() != nil {
 				return nil, errors.New(fmt.Sprintf("git log read commit line err: %v", scanner.Err()))
 			}
@@ -119,21 +158,23 @@ func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res
 				if err != nil {
 					return nil, err
 				}
-				operation := GitOperation{
-					Dir:       []string{},
-					Duration:  0, // calc duration
-					Name:      name,
-					StartDate: float64(date), // calc
-					StartTime: time.Unix(date, 0),
-					Updates:   files,
+				if len(files) != 0 {
+					operation := GitOperation{
+						Dir:       []string{},
+						Duration:  0, // calc duration
+						Name:      name,
+						StartDate: float64(date), // calc
+						StartTime: time.Unix(date, 0),
+						Updates:   files,
+					}
+					if len(res.Updates) == 0 {
+						t := operation.StartTime
+						res.StartDate = float64(time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()).Unix()) * 1000
+					}
+					// calc dir
+					operation.calcOperationDir()
+					res.Updates = append(res.Updates, operation)
 				}
-				if len(res.Updates) == 0 {
-					t := operation.StartTime
-					res.StartDate = float64(time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()).Unix()) * 1000
-				}
-				// calc dir
-				operation.calcOperationDir()
-				res.Updates = append(res.Updates, operation)
 			} else {
 				return nil, errors.New(fmt.Sprintf("git log unexpected word. expected: commit. got: %s%v", line, string(line[0])))
 			}
@@ -148,16 +189,17 @@ func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res
 	return
 }
 
-func readAuthor(in *bufio.Scanner) (name string, date int64, files []GitOperationFile, err error) {
+func readAuthor(in *Scanner) (name string, date int64, files []GitOperationFile, err error) {
 	if in.Scan() {
-		line := in.Text()
+		line := in.Line()
+		in.ResetCurrentLine()
 		if in.Err() != nil {
 			return "", 0, nil, errors.New(fmt.Sprintf("git log read author line err: %v", in.Err()))
 		}
 		if strings.HasPrefix(line, "Merge:") {
 			return readAuthor(in)
-		} else if strings.HasPrefix(line, "Author:") {
-			name = strings.TrimLeft(line, "Author: ")
+		} else if strings.HasPrefix(line, "Author: ") {
+			name = strings.TrimPrefix(line, "Author: ")
 			date, files, err = readDate(in)
 			return
 		} else {
@@ -168,9 +210,10 @@ func readAuthor(in *bufio.Scanner) (name string, date int64, files []GitOperatio
 	}
 }
 
-func readDate(in *bufio.Scanner) (date int64, files []GitOperationFile, err error) {
+func readDate(in *Scanner) (date int64, files []GitOperationFile, err error) {
 	if in.Scan() {
-		line := in.Text()
+		line := in.Line()
+		in.ResetCurrentLine()
 		if in.Err() != nil {
 			return 0, nil, errors.New(fmt.Sprintf("git log read date line err: %v", in.Err()))
 		}
@@ -180,13 +223,14 @@ func readDate(in *bufio.Scanner) (date int64, files []GitOperationFile, err erro
 				return 0, nil, errors.New(fmt.Sprintf("git log parse date err: %s %v", line, err))
 			}
 			if in.Scan() {
-				line = in.Text()
+				line = in.Line()
 				if in.Err() != nil {
 					return 0, nil, errors.New(fmt.Sprintf("git log read line after date err: %v", in.Err()))
 				}
-				if line != "" {
-					return 0, nil, errors.New(fmt.Sprintf("get log read line after date unexpected: %s", line))
+				if strings.HasPrefix(line, "commit") {
+					return
 				}
+				in.ResetCurrentLine()
 				files, err = readGitOperationFile(in)
 				return
 			} else {
@@ -200,15 +244,16 @@ func readDate(in *bufio.Scanner) (date int64, files []GitOperationFile, err erro
 	}
 }
 
-func readGitOperationFile(in *bufio.Scanner) (files []GitOperationFile, err error) {
+func readGitOperationFile(in *Scanner) (files []GitOperationFile, err error) {
 	for in.Scan() {
-		line := in.Text()
+		line := in.Line()
 		if in.Err() != nil {
 			return nil, errors.New(fmt.Sprintf("git log read commit file line err: %v", in.Err()))
 		}
-		if line == "" {
+		if strings.HasPrefix(line, "commit") {
 			break
 		}
+		in.ResetCurrentLine()
 		splitted := strings.Split(line, "\t")
 		if len(splitted) < 2 {
 			return nil, errors.New(fmt.Sprintf("git file expected at least slice of 2 elements. got: %s %v", line, splitted))

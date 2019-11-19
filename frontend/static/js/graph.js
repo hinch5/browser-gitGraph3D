@@ -82,6 +82,9 @@ class Graph {
 	now;
 	updateIndex;
 	orderedVertices;
+	movingVertices;
+	verticesMap;
+	operating;
 
 	constructor(updates) {
 		this.root = new GitObject([], true, 0, null);
@@ -99,11 +102,15 @@ class Graph {
 		this.edgeIndices = [];
 		this.contributors = [];
 		this.orderedVertices = [];
+		this.movingVertices = [];
 		this.updates = [new UpdateData('', [], 0, 1000, [])].concat(updates);  // init update
 		this.now = 0;
 		this.updateIndex = 0;
+		this.operating = true;
+		this.verticesMap = new Map([['', this.root]]);
 		this.buildNormals();
 		this.splitSpace(1000);
+		this.rebuildCoords(0);
 	};
 
 	buildNormals = () => {
@@ -127,6 +134,7 @@ class Graph {
 	};
 
 	startUpdate = () => {
+		this.operating = true;
 		if (this.updates[this.updateIndex].name !== '') {
 			let contributorInd = null;
 			for (let i = 0; i < this.contributors.length; i++) {
@@ -153,7 +161,8 @@ class Graph {
 				if (updateFiles[i].action === 0) {
 					updateFiles[i].vertexSet = this.addElement(dir, updateFiles[i].file, updateFiles[i].isDir, dir.path.length);
 				} else if (updateFiles[i].action === 1) {
-					updateFiles[i].vertexSet = [this.findDir(dir, updateFiles[i].file, dir.path.length)];
+					const p = this.findDir(dir, updateFiles[i].file, dir.path.length);
+					updateFiles[i].vertexSet = [p];
 				} else if (updateFiles[i].action === 2) {
 					if (!haveDelete) {
 						this.updates[this.updateIndex].duration /= 2;
@@ -195,6 +204,7 @@ class Graph {
 				if (updateFiles[i].action === 2) {
 					for (let j = 0; j < updateFiles[i].vertexSet.length; j++) {
 						if (updateFiles[i].vertexSet[j].parent) {
+							this.verticesMap.delete(updateFiles[i].vertexSet[j].path.join('/'));
 							updateFiles[i].vertexSet[j].parent.removeChild(updateFiles[i].vertexSet[j]);
 							const newV = this.heightMap.get(updateFiles[i].vertexSet[j].level + 1) - 1;
 							this.heightMap.set(updateFiles[i].vertexSet[j].level + 1, newV);
@@ -207,13 +217,14 @@ class Graph {
 		this.currentContributor = null;
 		this.edgeCoords = [];
 		this.edgeColors = [];
+		this.operating = false;
 	};
 	iterate = (delta) => {
 		if (this.updateIndex < this.updates.length) {
 			if (this.now < this.updates[this.updateIndex].startDate && this.now + delta >= this.updates[this.updateIndex].startDate) {
 				this.startUpdate();
 				this.splitSpace(this.updates[this.updateIndex].duration);
-				this.buildCoords(Math.min(this.now + delta - this.updates[this.updateIndex].startDate,
+				this.rebuildCoords(Math.min(this.now + delta - this.updates[this.updateIndex].startDate,
 					this.updates[this.updateIndex].expireDate - this.updates[this.updateIndex].startDate));
 			} else {
 				this.buildCoords(Math.min(this.now + delta - this.updates[this.updateIndex].startDate,
@@ -241,18 +252,30 @@ class Graph {
 		return 0;
 	};
 	findDir = (parent, path, pathInd) => {
-		for (let i = 0; i < parent.children.length; i++) {
-			if (parent.children[i].path[pathInd] === path[pathInd]) {
-				return this.findDir(parent.children[i], path, pathInd + 1);
-			}
+		if (parent.children.length === 0) {
+			return parent;
 		}
-		return parent;
+		let l = 0, r = parent.children.length;
+		let m = Math.floor(r / 2);
+		while (l < r - 1) {
+			if (parent.children[m].path[pathInd] === path[pathInd]) {
+				break;
+			} else if (path[pathInd] < parent.children[m].path[pathInd]) {
+				r = m;
+			} else {
+				l = m;
+			}
+			m = Math.floor((r + l) / 2);
+		}
+		if (parent.children[m].path[pathInd] === path[pathInd]) {
+			return this.findDir(parent.children[m], path, pathInd + 1);
+		} else {
+			return parent;
+		}
 	};
 	addElement = (parent, path, isDir, pathInd) => {
-		// console.log('append child 1', this.updateIndex, path, pathInd);
 		const res = [];
 		let p = this.findDir(parent, path, pathInd);
-		// console.log('append child 2', this.updateIndex, p.path, p.isDir);
 		for (let i = p.path.length; i < path.length - 1; i++) {
 			const child = new GitObject(path.slice(0, i + 1), true, p.level + 1, p);
 			if (this.heightMap.has(p.level + 2)) {
@@ -261,12 +284,13 @@ class Graph {
 			} else {
 				this.heightMap.set(p.level + 2, 1);
 			}
+			this.verticesMap.set(path.slice(0, i + 1).join('/'), child);
 			p.addChild(child);
 			res.push(child);
 			p = child;
 		}
-		// console.log('append child 3', this.updateIndex, path, pathInd);
 		const lastChild = new GitObject(path, isDir, p.level + 1, p);
+		this.verticesMap.set(path.join('/'), lastChild);
 		p.addChild(lastChild);
 		res.push(lastChild);
 		if (this.heightMap.has(p.level + 2)) {
@@ -280,18 +304,9 @@ class Graph {
 	};
 	removeElement = (parent, path, pathInd) => {
 		const res = [];
-		for (let i = pathInd; i < path.length; i++) {
-			let found = false;
-			for (let j = 0; j < parent.children.length; j++) {
-				if (parent.children[j].path[i] === path[i]) {
-					parent = parent.children[j];
-					found = true;
-					break;
-				}
-			}
-			if (!found) {   // not in graph, delete is useless
-				return res;
-			}
+		parent = this.findDir(parent, path, pathInd);
+		if (parent.path.length !== path.length) {
+			return res;
 		}
 		res.push(parent);
 		parent.removing = true;
@@ -312,40 +327,43 @@ class Graph {
 		this.root.boundRect = new Rect3D(-GRAPH_WIDTH / 2, -GRAPH_DEPTH / 2, GRAPH_WIDTH, GRAPH_DEPTH);
 		this.edgeIndices = [];
 		this.orderedVertices = [];
+		this.movingVertices = [];
 		let skip = 0;
 		const stack = [[[this.root], this.root.boundRect, null]];
 		while (stack.length !== 0) {
 			const vertexSet = stack.pop();
 			if (vertexSet[0].length === 1) {
 				if (vertexSet[0][0].haveContributor()) {
-					// console.log('split contributor', vertexSet[0][0].contributor.level, vertexSet[0][0].contributor.dir.path, this.height);
 					const rectSplitted = vertexSet[1].split(0.5);
 					if (vertexSet[0][0].contributor.coords) {
-						vertexSet[0][0].contributor.calcAcceleration(this.height, skip, rectSplitted[1], duration);
+						vertexSet[0][0].contributor.calcAcceleration(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1), rectSplitted[1], duration);
 					} else {
 						vertexSet[0][0].contributor.boundRect = rectSplitted[1];
-						vertexSet[0][0].contributor.buildSphere(this.height, skip);
+						vertexSet[0][0].contributor.buildSphere(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1));
 					}
 					skip += VERTEX_SIZE + SKIP_COORDS;
 					if (!vertexSet[0][0].coords) {
 						vertexSet[0][0].boundRect = rectSplitted[0];
-						vertexSet[0][0].calcTransparencySpeed(this.height, skip, duration);
+						vertexSet[0][0].calcTransparencySpeed(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1), duration);
 					} else {
 						if (vertexSet[0][0].removing) {
-							vertexSet[0][0].calcRemoveSpeed(skip, duration);
+							vertexSet[0][0].calcRemoveSpeed(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1), duration);
 						}
-						vertexSet[0][0].calcAcceleration(this.height, skip, rectSplitted[0], duration);
+						vertexSet[0][0].calcAcceleration(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1), rectSplitted[0], duration);
+					}
+					if (vertexSet[0][0].contributor.isMoving()) {
+						this.movingVertices.push(vertexSet[0][0].contributor);
 					}
 					this.orderedVertices.push(vertexSet[0][0].contributor);
 				} else {
 					if (!vertexSet[0][0].coords) {
 						vertexSet[0][0].boundRect = vertexSet[1];
-						vertexSet[0][0].calcTransparencySpeed(this.height, skip, duration);
+						vertexSet[0][0].calcTransparencySpeed(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1), duration);
 					} else {
 						if (vertexSet[0][0].removing) {
-							vertexSet[0][0].calcRemoveSpeed(skip, duration);
+							vertexSet[0][0].calcRemoveSpeed(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1), duration);
 						}
-						vertexSet[0][0].calcAcceleration(this.height, skip, vertexSet[1], duration);
+						vertexSet[0][0].calcAcceleration(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1), vertexSet[1], duration);
 					}
 				}
 				if (vertexSet[0][0].children.length !== 0) {
@@ -353,6 +371,9 @@ class Graph {
 				}
 				if (vertexSet[2] !== null) {
 					this.edgeIndices.push(skip + VERTEX_SIZE, vertexSet[2].skip + VERTEX_SIZE);
+				}
+				if (vertexSet[0][0].isMoving()) {
+					this.movingVertices.push(vertexSet[0][0]);
 				}
 				this.orderedVertices.push(vertexSet[0][0]);
 				skip += VERTEX_SIZE + SKIP_COORDS;
@@ -379,23 +400,36 @@ class Graph {
 			}
 		}
 	};
-	buildCoords = (delta) => {
+	rebuildCoords = (delta) => {
 		this.coords = [];
 		this.colors = [];
 		this.indices = [];
 		this.normals = [];
 		for (let i = 0; i < this.orderedVertices.length; i++) {
-			this.orderedVertices[i].move(delta);
 			this.coords = this.coords.concat(this.orderedVertices[i].coords);
 			this.indices = this.indices.concat(this.orderedVertices[i].indices);
 			this.colors = this.colors.concat(this.orderedVertices[i].colors);
+			this.orderedVertices[i].move(this.coords, this.colors, delta);
 			this.normals = this.normals.concat(this.sphereNormal);
 		}
 		if (this.currentContributor) {
-			this.currentContributor.buildEdges();
+			this.currentContributor.buildEdges(this.coords);
 			this.edgeCoords = this.currentContributor.edgeCoords;
 			this.edgeColors = this.currentContributor.edgeColors;
 			this.edgeNormals = this.currentContributor.edgeNormals;
+		}
+	};
+	buildCoords = (delta) => {
+		if (this.operating && delta > 0) {
+			for (let i = 0; i < this.movingVertices.length; i++) {
+				this.movingVertices[i].move(this.coords, this.colors, delta);
+			}
+			if (this.currentContributor) {
+				this.currentContributor.buildEdges(this.coords);
+				this.edgeCoords = this.currentContributor.edgeCoords;
+				this.edgeColors = this.currentContributor.edgeColors;
+				this.edgeNormals = this.currentContributor.edgeNormals;
+			}
 		}
 	};
 	calcHeight = () => {
@@ -406,6 +440,22 @@ class Graph {
 			}
 		});
 		this.height = maxHeight;
+	};
+	calcRadius = (level) => {
+		const value = this.heightMap.get(level);
+		if (value < 30) {
+			return 0.06;
+		} else if (value < 100) {
+			return 0.05;
+		} else if (value < 200) {
+			return 0.04;
+		} else if (value < 400) {
+			return 0.03;
+		} else if (value < 800) {
+			return 0.025;
+		} else {
+			return 0.02;
+		}
 	};
 	getName = (x, y, model, view) => {
 		const resVertices = [];

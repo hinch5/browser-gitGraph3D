@@ -12,12 +12,12 @@
 // 65 a
 // 83 s
 // 68 d
+// 32 space
 
 const MIN_PERCENT_SPLIT = 0.25;
-const SPHERE_STACK_COUNT = 8;
-const SPHERE_SECTOR_COUNT = 8;
+const SPHERE_STACK_COUNT = 6;
+const SPHERE_SECTOR_COUNT = 6;
 const VERTEX_SIZE = (SPHERE_SECTOR_COUNT + 1) * (SPHERE_STACK_COUNT + 1);
-const SPHERE_RADIUS = 0.06;
 const SKIP_COORDS = 1;
 const GRAPH_WIDTH = 1.4;
 const GRAPH_HEIGHT = 1.4;
@@ -35,6 +35,7 @@ class WorkSpace {
 	processing;
 	skip;
 	dayDuration;
+	paused;
 
 	constructor() {
 		this.angles = [0, 0, 0];
@@ -42,6 +43,7 @@ class WorkSpace {
 		this.scale = 0.0;
 		this.begin = Date.now();
 		this.processing = false;
+		this.paused = false;
 		window.addEventListener('keydown', this.transformation);
 		window.addEventListener('resize', this.resize);
 
@@ -76,21 +78,22 @@ class WorkSpace {
 		if (res && (skipDuration === '' || !skipDuration.match('^[0-9]+$'))) {
 			res = false;
 		}
-		return res;
+		return res && !this.processing;
 	};
 
 	loadGraph = () => {
-		let repoType = document.getElementById('repo-type-select').value, dayDuration, maxCommitDuration, path, skip;
-		path = document.getElementById('path-input').value;
-		dayDuration = document.getElementById('day-length-input').value;
-		maxCommitDuration = document.getElementById('max-commit-length-input').value;
-		skip = document.getElementById('skip-length-input').value;
+		const repoType = document.getElementById('repo-type-select').value,
+			path = document.getElementById('path-input').value,
+			dayDuration = document.getElementById('day-length-input').value,
+			maxCommitDuration = document.getElementById('max-commit-length-input').value,
+			skip = document.getElementById('skip-length-input').value;
 		if (!this.checkParams(path, dayDuration, maxCommitDuration, skip)) {
 			return;
 		}
 		this.dayDuration = Number(dayDuration);
-		this.skip = Number(skip) * this.dayDuration;
+		this.skip = Number(skip);
 		this.processing = true;
+		this.validateForm();
 		const req = new XMLHttpRequest();
 		req.open('POST', '/api/repository');
 		req.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
@@ -110,7 +113,7 @@ class WorkSpace {
 						updates.push(new UpdateData(
 							respUpdates[i].name,
 							respUpdates[i].dir,
-							respUpdates[i].startDate,
+							respUpdates[i].startDate + 1000,
 							respUpdates[i].duration,
 							fileUpdates
 						));
@@ -124,6 +127,9 @@ class WorkSpace {
 					// handle error
 				}
 				this.processing = false;
+				if (req.status !== 200) {
+					this.validateForm();
+				}
 			}
 		};
 	};
@@ -157,25 +163,29 @@ class WorkSpace {
 			this.translate[1] -= 0.01;
 		} else if (ev.keyCode === 68) {
 			this.translate[0] += 0.01;
+		} else if (ev.keyCode === 32) {
+			this.paused = !this.paused;
 		}
 	};
 	drawScene = () => {
-		let delta;
-		if (!this.now) {
-			this.now = Date.now();
-			delta = 0;
-		} else {
-			const t = Date.now();
-			delta = t - this.now;
-			this.now = t;
-		}
-		if (this.skip !== 0) {
-			const skip = this.graph.checkSkip();
-			if (skip > this.skip) {
-				delta = skip;
+		let delta = 0;
+		if (!this.paused) {
+			if (!this.now) {
+				this.now = Date.now();
+				delta = 0;
+			} else {
+				const t = Date.now();
+				delta = t - this.now;
+				this.now = t;
+			}
+			if (this.skip !== 0) {
+				const skip = this.graph.checkSkip();
+				if (skip > this.skip) {
+					delta = skip;
+				}
 			}
 		}
-		this.begin += delta*(24*3600*1000/this.dayDuration);
+		this.begin += delta * (24 * 3600 * 1000 / this.dayDuration);
 		let model = glMatrix.mat4.create(), view = glMatrix.mat4.create(), normalModel = glMatrix.mat4.create();
 		glMatrix.mat4.fromScaling(model, glMatrix.vec3.fromValues(this.aspectRatioBalance, 1, 1));
 		glMatrix.mat4.rotateX(model, model, glMatrix.glMatrix.toRadian(this.angles[0]));
@@ -187,7 +197,7 @@ class WorkSpace {
 		glMatrix.mat4.transpose(normalModel, normalModel);
 		this.canvas.draw(model, view, normalModel, delta, this.begin);
 
-		setTimeout(this.drawScene, 10);
+		setTimeout(this.drawScene, 20);
 	};
 	resize = () => {
 		this.canvas.resize();
