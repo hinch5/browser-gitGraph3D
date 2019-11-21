@@ -68,6 +68,15 @@ class Vertex {
 	acceleration;
 	transparencySpeed;
 	removeSpeed;
+	nextAcceleration;
+	nextTransparencySpeed;
+	nextRemoveSpeed;
+	nextDistance;
+	nextRadius;
+	nextTime;
+	nextSkip;
+	nextBoundRect;
+	nextLevel;
 	removing;
 	time;
 	distance;
@@ -85,10 +94,10 @@ class Vertex {
 		this.coords = [];
 		this.colors = [];
 		let x, y, z, xz;
-		this.centerX = this.boundRect.centerX;
-		this.centerY = GRAPH_HEIGHT / 2 - (this.level * (GRAPH_HEIGHT / height)) - (GRAPH_HEIGHT / (2 * height));
-		this.centerZ = this.boundRect.centerY;
-		const minRect = Math.min(this.boundRect.width/2, this.boundRect.height/2, GRAPH_HEIGHT / (4 * height));
+		this.centerX = this.nextBoundRect.centerX;
+		this.centerY = GRAPH_HEIGHT / 2 - (this.nextLevel * (GRAPH_HEIGHT / height)) - (GRAPH_HEIGHT / (2 * height));
+		this.centerZ = this.nextBoundRect.centerY;
+		const minRect = Math.min(this.nextBoundRect.width/2, this.nextBoundRect.height/2, GRAPH_HEIGHT / (4 * height));
 		if (radius <= minRect) {
 			this.radius = radius;
 		} else {
@@ -115,7 +124,7 @@ class Vertex {
 	};
 	buildIndices = (skip) => {
 		this.indices = [];
-		this.skip = skip;
+		this.nextSkip = skip;
 		for (let i = 0; i < SPHERE_STACK_COUNT; i++) {
 			let k1 = i * (SPHERE_SECTOR_COUNT + 1);
 			let k2 = k1 + SPHERE_SECTOR_COUNT + 1;
@@ -166,23 +175,56 @@ class Vertex {
 		return (this.acceleration && (this.acceleration[0] !== 0 || this.acceleration[1] !== 0 || this.acceleration[2] !== 0)
 			|| (this.transparencySpeed && this.transparencySpeed !== 0) || (this.removeSpeed && this.removeSpeed !== 0));
 	};
+	
+	setNextSpeed = (height) => {
+		if (this.acceleration) {
+			this.resetAcceleration();
+		}
+		if (this.transparencySpeed) {
+			this.resetTransparencySpeed();
+		}
+		if (this.removeSpeed) {
+			this.resetRemoveSpeed();
+		}
+		if (this.nextRadius && this.radius !== this.nextRadius) {
+			this.buildSphere(height, this.nextSkip, this.nextRadius);
+		}
+		if (this.skip !== this.nextSkip) {
+			const delta = this.nextSkip - this.skip;
+			for (let i = 0; i < this.indices.length; i++) {
+				this.indices[i] += delta;
+			}
+		}
+		this.acceleration = this.nextAcceleration;
+		this.removeSpeed = this.nextRemoveSpeed;
+		this.transparencySpeed = this.nextTransparencySpeed;
+		this.distance = this.nextDistance;
+		this.time = this.nextTime;
+		this.skip = this.nextSkip;
+		this.boundRect = this.nextBoundRect;
+		this.level = this.nextLevel;
+		this.nextAcceleration = null;
+		this.nextRemoveSpeed = null;
+		this.nextTransparencySpeed = null;
+		this.nextDistance = null;
+		this.nextTime = null;
+		this.nextSkip = null;
+		this.nextRadius = null;
+		this.nextBoundRect = null;
+		this.nextLevel = null;
+	};
 
 	calcAcceleration = (height, skip, radius, rect, t) => {
-		if (this.radius !== radius) {
-			this.buildSphere(height, skip, radius);
-		}
 		this.buildIndices(skip);
 		const centerX = rect.centerX;
-		const centerY = GRAPH_HEIGHT / 2 - (this.level * (GRAPH_HEIGHT / height)) - (GRAPH_HEIGHT / (2 * height));
+		const centerY = GRAPH_HEIGHT / 2 - (this.nextLevel * (GRAPH_HEIGHT / height)) - (GRAPH_HEIGHT / (2 * height));
 		const centerZ = rect.centerY;
 		const tSquare = t * t;
-		this.distance = [centerX - this.centerX, centerY - this.centerY, centerZ - this.centerZ];
-		this.acceleration = [4 * this.distance[0] / tSquare, 4 * this.distance[1] / tSquare, 4 * this.distance[2] / tSquare];
-		this.centerX = centerX;
-		this.centerY = centerY;
-		this.centerZ = centerZ;
-		this.time = t;
-		this.boundRect = rect;
+		this.nextDistance = [centerX - (this.centerX+this.distance[0]), centerY - (this.centerY+this.distance[1]), centerZ - (this.centerZ+this.distance[2])];
+		this.nextAcceleration = [4 * this.distance[0] / tSquare, 4 * this.distance[1] / tSquare, 4 * this.distance[2] / tSquare];
+		this.nextTime = t;
+		this.nextBoundRect = rect;
+		this.nextRadius = radius;
 	};
 
 	resetAcceleration = () => {
@@ -192,14 +234,18 @@ class Vertex {
 				this.coords[4 * i + 1] += this.distance[1];
 				this.coords[4 * i + 2] += this.distance[2];
 			}
+			this.centerX += this.distance[0];
+			this.centerY += this.distance[1];
+			this.centerZ += this.distance[2];
 		}
 		this.acceleration = null;
 	};
 
 	calcTransparencySpeed = (height, skip, radius, t) => {
 		this.buildSphere(height, skip, radius);
-		this.transparencySpeed = 1.0 / t;
-		this.time = t;
+		this.buildIndices(skip);
+		this.nextTransparencySpeed = 1.0 / t;
+		this.nextTime = t;
 	};
 
 	resetTransparencySpeed = () => {
@@ -211,13 +257,9 @@ class Vertex {
 		this.transparencySpeed = null;
 	};
 
-	calcRemoveSpeed = (height, skip, radius, t) => {
-		if (this.radius !== radius) {
-			this.buildSphere(height, skip, radius);
-		}
-		this.buildIndices(skip);
-		this.removeSpeed = 1.0 / t;
-		this.time = t;
+	calcRemoveSpeed = (t) => {
+		this.nextRemoveSpeed = 1.0 / t;
+		this.nextTime = t;
 	};
 
 	resetRemoveSpeed = () => {
@@ -229,12 +271,16 @@ class Vertex {
 		this.removeSpeed = null;
 	};
 
-	set boundRect(rect) {
-		this.boundRect = rect;
+	set nextBoundRect(rect) {
+		this.nextBoundRect = rect;
 	}
 
 	set level(level) {
 		this.level = level;
+	}
+	
+	set nextLevel(level) {
+		this.nextLevel = level;
 	}
 
 	set removing(removing) {
@@ -247,6 +293,10 @@ class Vertex {
 
 	get boundRect() {
 		return this.boundRect;
+	}
+	
+	get nextBoundRect() {
+		return this.nextBoundRect;
 	}
 
 	get parent() {

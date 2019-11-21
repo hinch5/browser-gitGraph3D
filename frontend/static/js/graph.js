@@ -83,12 +83,13 @@ class Graph {
 	updateIndex;
 	orderedVertices;
 	movingVertices;
-	verticesMap;
+	// verticesMap;
 	operating;
+	updatePromise;
 
 	constructor(updates) {
 		this.root = new GitObject([], true, 0, null);
-		this.root.boundRect = new Rect3D(-GRAPH_WIDTH / 2, -GRAPH_DEPTH / 2, GRAPH_WIDTH, GRAPH_DEPTH);
+		this.root.nextBoundRect = new Rect3D(-GRAPH_WIDTH / 2, -GRAPH_DEPTH / 2, GRAPH_WIDTH, GRAPH_DEPTH);
 		this.height = 1;
 		this.heightMap = new Map();
 		this.heightMap.set(1, 1);
@@ -107,10 +108,16 @@ class Graph {
 		this.now = 0;
 		this.updateIndex = 0;
 		this.operating = true;
-		this.verticesMap = new Map([['', this.root]]);
+		// this.verticesMap = new Map([['', this.root]]);
 		this.buildNormals();
 		this.splitSpace(1000);
+		this.root.setNextSpeed(1);
 		this.rebuildCoords(0);
+		this.updatePromise = new Promise((resolve, reject) => {
+			console.log('start', this.updateIndex+1);
+			this.startUpdate();
+			resolve();
+		});
 	};
 
 	buildNormals = () => {
@@ -135,27 +142,27 @@ class Graph {
 
 	startUpdate = () => {
 		this.operating = true;
-		if (this.updates[this.updateIndex].name !== '') {
+		if (this.updates[this.updateIndex+1].name !== '') {
 			let contributorInd = null;
 			for (let i = 0; i < this.contributors.length; i++) {
-				if (this.contributors[i].name === this.updates[this.updateIndex].name) {
+				if (this.contributors[i].name === this.updates[this.updateIndex+1].name) {
 					contributorInd = i;
 					break;
 				}
 			}
 			if (contributorInd === null) {
 				contributorInd = this.contributors.length;
-				this.contributors.push(new GitContributor(this.updates[this.updateIndex].name))
+				this.contributors.push(new GitContributor(this.updates[this.updateIndex+1].name))
 			}
 			this.currentContributor = this.contributors[contributorInd];
 			if (this.currentContributor.dir) {
 				this.currentContributor.dir.contributor = null;
 			}
-			const dir = this.findDir(this.root, this.updates[this.updateIndex].dir, 0);
+			const dir = this.findDir(this.root, this.updates[this.updateIndex+1].dir, 0);
 			this.currentContributor.dir = dir;
-			this.currentContributor.level = dir.level;
+			this.currentContributor.nextLevel = dir.level;
 			dir.contributor = this.currentContributor;
-			const updateFiles = this.updates[this.updateIndex].updates;
+			const updateFiles = this.updates[this.updateIndex+1].updates;
 			let haveDelete = false;
 			for (let i = 0; i < updateFiles.length; i++) {
 				if (updateFiles[i].action === 0) {
@@ -165,12 +172,12 @@ class Graph {
 					updateFiles[i].vertexSet = [p];
 				} else if (updateFiles[i].action === 2) {
 					if (!haveDelete) {
-						this.updates[this.updateIndex].duration /= 2;
-						this.updates[this.updateIndex].expireDate -= this.updates[this.updateIndex].duration;
+						this.updates[this.updateIndex+1].duration /= 2;
+						this.updates[this.updateIndex+1].expireDate -= this.updates[this.updateIndex+1].duration;
 						this.updates.splice(this.updateIndex + 1, 0,
 							new UpdateData('', [],
-								this.updates[this.updateIndex].expireDate,
-								this.updates[this.updateIndex].duration,
+								this.updates[this.updateIndex+1].expireDate,
+								this.updates[this.updateIndex+1].duration,
 								[]));
 						haveDelete = true;
 					}
@@ -204,7 +211,7 @@ class Graph {
 				if (updateFiles[i].action === 2) {
 					for (let j = 0; j < updateFiles[i].vertexSet.length; j++) {
 						if (updateFiles[i].vertexSet[j].parent) {
-							this.verticesMap.delete(updateFiles[i].vertexSet[j].path.join('/'));
+							// this.verticesMap.delete(updateFiles[i].vertexSet[j].path.join('/'));
 							updateFiles[i].vertexSet[j].parent.removeChild(updateFiles[i].vertexSet[j]);
 							const newV = this.heightMap.get(updateFiles[i].vertexSet[j].level + 1) - 1;
 							this.heightMap.set(updateFiles[i].vertexSet[j].level + 1, newV);
@@ -222,10 +229,19 @@ class Graph {
 	iterate = (delta) => {
 		if (this.updateIndex < this.updates.length) {
 			if (this.now < this.updates[this.updateIndex].startDate && this.now + delta >= this.updates[this.updateIndex].startDate) {
-				this.startUpdate();
-				this.splitSpace(this.updates[this.updateIndex].duration);
-				this.rebuildCoords(Math.min(this.now + delta - this.updates[this.updateIndex].startDate,
-					this.updates[this.updateIndex].expireDate - this.updates[this.updateIndex].startDate));
+				// this.startUpdate();
+				// this.splitSpace(this.updates[this.updateIndex].duration);
+				this.updatePromise.then(() => {
+					this.rebuildCoords(Math.min(this.now + delta - this.updates[this.updateIndex].startDate,
+						this.updates[this.updateIndex].expireDate - this.updates[this.updateIndex].startDate));
+					console.log('finish promise', this.updateIndex+1);
+				});
+				console.log('finish sync test', this.updateIndex+1);
+				this.updatePromise = new Promise((resolve, reject) => {
+					console.log('start', this.updateIndex+1);
+					this.startUpdate();
+					resolve();
+				})
 			} else {
 				this.buildCoords(Math.min(this.now + delta - this.updates[this.updateIndex].startDate,
 					this.updates[this.updateIndex].expireDate - this.updates[this.updateIndex].startDate));  // from operation start
@@ -284,13 +300,13 @@ class Graph {
 			} else {
 				this.heightMap.set(p.level + 2, 1);
 			}
-			this.verticesMap.set(path.slice(0, i + 1).join('/'), child);
+			// this.verticesMap.set(path.slice(0, i + 1).join('/'), child);
 			p.addChild(child);
 			res.push(child);
 			p = child;
 		}
 		const lastChild = new GitObject(path, isDir, p.level + 1, p);
-		this.verticesMap.set(path.join('/'), lastChild);
+		// this.verticesMap.set(path.join('/'), lastChild);
 		p.addChild(lastChild);
 		res.push(lastChild);
 		if (this.heightMap.has(p.level + 2)) {
@@ -324,12 +340,12 @@ class Graph {
 		return res;
 	};
 	splitSpace = (duration) => {
-		this.root.boundRect = new Rect3D(-GRAPH_WIDTH / 2, -GRAPH_DEPTH / 2, GRAPH_WIDTH, GRAPH_DEPTH);
+		this.root.nextBoundRect = new Rect3D(-GRAPH_WIDTH / 2, -GRAPH_DEPTH / 2, GRAPH_WIDTH, GRAPH_DEPTH);
 		this.edgeIndices = [];
 		this.orderedVertices = [];
 		this.movingVertices = [];
 		let skip = 0;
-		const stack = [[[this.root], this.root.boundRect, null]];
+		const stack = [[[this.root], this.root.nextBoundRect, null]];
 		while (stack.length !== 0) {
 			const vertexSet = stack.pop();
 			if (vertexSet[0].length === 1) {
@@ -338,12 +354,12 @@ class Graph {
 					if (vertexSet[0][0].contributor.coords) {
 						vertexSet[0][0].contributor.calcAcceleration(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1), rectSplitted[1], duration);
 					} else {
-						vertexSet[0][0].contributor.boundRect = rectSplitted[1];
+						vertexSet[0][0].contributor.nextBoundRect = rectSplitted[1];
 						vertexSet[0][0].contributor.buildSphere(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1));
 					}
 					skip += VERTEX_SIZE + SKIP_COORDS;
 					if (!vertexSet[0][0].coords) {
-						vertexSet[0][0].boundRect = rectSplitted[0];
+						vertexSet[0][0].nextBoundRect = rectSplitted[0];
 						vertexSet[0][0].calcTransparencySpeed(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1), duration);
 					} else {
 						if (vertexSet[0][0].removing) {
@@ -357,7 +373,7 @@ class Graph {
 					this.orderedVertices.push(vertexSet[0][0].contributor);
 				} else {
 					if (!vertexSet[0][0].coords) {
-						vertexSet[0][0].boundRect = vertexSet[1];
+						vertexSet[0][0].nextBoundRect = vertexSet[1];
 						vertexSet[0][0].calcTransparencySpeed(this.height, skip, this.calcRadius(vertexSet[0][0].level + 1), duration);
 					} else {
 						if (vertexSet[0][0].removing) {
