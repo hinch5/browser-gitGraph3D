@@ -36,7 +36,7 @@ class Canvas {
 			alert('init gl fail');
 		}
 		if (this.GL) {
-			this.GL.clearColor(0.09, 0.09, 0.09, 1.0);
+			this.GL.clearColor(1.0, 1.0, 1.0, 1.0);
 			this.GL.enable(this.GL.DEPTH_TEST);
 			this.GL.depthFunc(this.GL.LEQUAL);
 			this.GL.enable(this.GL.BLEND);
@@ -48,6 +48,11 @@ class Canvas {
 		this.graphProgram = new Program(this.GL, 'vertex-shader', 'fragment-shader');
 		this.edgeProgram = new Program(this.GL, 'vertex-simple-shader', 'fragment-shader');
 	}
+	
+	clear = () => {
+		this.GL.clearColor(0.09, 0.09, 0.09, 1.0);
+		this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
+	};
 
 	calcFont = () => {
 		const width = this.canvas.width;

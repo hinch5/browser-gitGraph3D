@@ -127,8 +127,8 @@ func calcOperationsDuration(operations []GitOperation, dayDuration, maxCommitDur
 	}
 }
 
-func readLocalRepository(path string, dayDuration, maxCommitDuration int64) (res *Response, err error) {
-	cmd := exec.Command("git", "log", "--name-status", "--first-parent", "-m", "--reverse", fmt.Sprintf("--format=commit: %%H%%nAuthor: %%an %%ae%%nDate: %%at"))
+func readLocalRepository(path, branch string, dayDuration, maxCommitDuration int64) (res *Response, err error) {
+	cmd := exec.Command("git", "log", branch, "--name-status", "--first-parent", "-m", "--reverse", fmt.Sprintf("--format=commit: %%H%%nAuthor: %%an %%ae%%nDate: %%at"))
 	cmd.Dir = path
 	reader, err := cmd.StdoutPipe()
 	if err != nil {

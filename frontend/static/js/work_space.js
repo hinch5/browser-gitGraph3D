@@ -59,6 +59,7 @@ class WorkSpace {
 	validateForm = () => {
 		let res = this.checkParams(
 			document.getElementById('path-input').value,
+			document.getElementById('branch-input').value,
 			document.getElementById('day-length-input').value,
 			document.getElementById('max-commit-length-input').value,
 			document.getElementById('skip-length-input').value
@@ -90,9 +91,12 @@ class WorkSpace {
 		return true;
 	};
 
-	checkParams = (path, dayDuration, maxCommitDuration, skipDuration) => {
+	checkParams = (path, branch, dayDuration, maxCommitDuration, skipDuration) => {
 		let res = true;
 		if (path === '') {
+			res = false;
+		}
+		if (branch === '') {
 			res = false;
 		}
 		if (res && (dayDuration === '' || !dayDuration.match('^[0-9]+$'))) {
@@ -110,10 +114,11 @@ class WorkSpace {
 	loadGraph = () => {
 		const repoType = document.getElementById('repo-type-select').value,
 			path = document.getElementById('path-input').value,
+			branch = document.getElementById('branch-input').value,
 			dayDuration = document.getElementById('day-length-input').value,
 			maxCommitDuration = document.getElementById('max-commit-length-input').value,
 			skip = document.getElementById('skip-length-input').value;
-		if (!this.checkParams(path, dayDuration, maxCommitDuration, skip)) {
+		if (!this.checkParams(path, branch, dayDuration, maxCommitDuration, skip)) {
 			return;
 		}
 		this.dayDuration = Number(dayDuration);
@@ -123,7 +128,7 @@ class WorkSpace {
 		const req = new XMLHttpRequest();
 		req.open('POST', '/api/repository');
 		req.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-		req.send('repoType=' + repoType + '&path=' + path + '&dayDuration=' + dayDuration + '&maxCommitDuration=' + maxCommitDuration);
+		req.send('repoType=' + repoType + '&path=' + path + '&branch=' + branch + '&dayDuration=' + dayDuration + '&maxCommitDuration=' + maxCommitDuration);
 		req.onreadystatechange = () => {
 			if (req.readyState === XMLHttpRequest.DONE) {
 				if (req.status === 200) {
@@ -169,7 +174,7 @@ class WorkSpace {
 			return;
 		}
 		if (expireDate) {
-			const delta = (expireDate.getTime() - this.begin)/(1000*60*60*24)*this.dayDuration;
+			const delta = (expireDate.getTime() - this.begin) / (1000 * 60 * 60 * 24) * this.dayDuration;
 			let dropCount = 0;
 			for (let i = this.updates.length - 1; i > 0; i--) {
 				if (this.updates[i].startDate - 1000 <= delta) {
@@ -182,11 +187,12 @@ class WorkSpace {
 		this.graph = new Graph(this.updates);
 		this.canvas.graph = this.graph;
 		if (startDate) {
-			const delta = (startDate.getTime() - this.begin)/(1000*60*60*24)*this.dayDuration;
+			const delta = (startDate.getTime() - this.begin) / (1000 * 60 * 60 * 24) * this.dayDuration;
 			this.graph.iterate(delta);
 			this.begin = startDate.getTime();
 		}
 		this.canvas.initBuffers();
+		this.canvas.clear();
 		document.getElementById('main').removeChild(document.getElementById('manager'));
 		this.drawScene();
 	};

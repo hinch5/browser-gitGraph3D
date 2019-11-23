@@ -69,6 +69,7 @@
 					remote
 				</option>
 			</select>
+			<input id="branch-input" placeholder="branch" value="master" oninput="space.validateForm()">
 			<input id="path-input" placeholder="path or url" oninput="space.validateForm()">
 		</div>
 		<div class="length-input">
@@ -88,7 +89,9 @@
 			</div>
 			<button id="graph-submit" onclick="space.startGraph()">Start</button>
 		</div>
-		<button id="repo-submit" onclick="space.loadGraph()">Submit</button>
+		<div class="form-submit-container">
+			<button id="repo-submit" onclick="space.loadGraph()">Submit</button>
+		</div>
 	</div>
 </div>
 <canvas id="text-canvas" class="text-canvas"></canvas>

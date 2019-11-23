@@ -7,3 +7,5 @@
 .idea/libraries
 .idea/caches
 .idea/*
+backend/repo
+backend/repo/*

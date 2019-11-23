@@ -8,7 +8,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 type ErrorResponse struct {
@@ -70,7 +72,7 @@ func validateInt64(values url.Values, name string, min int64) (res int64, err er
 	return
 }
 
-func parseRepositoryHandler(local bool) http.HandlerFunc {
+func parseRepositoryHandler(local bool, dir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			writeError(w, 405, "method is not allowed")
@@ -94,6 +96,11 @@ func parseRepositoryHandler(local bool) http.HandlerFunc {
 			writeError(w, 400, err.Error())
 			return
 		}
+		branch, err := validateString(r.PostForm, "branch", nil)
+		if err != nil {
+			writeError(w, 400, err.Error())
+			return
+		}
 		dayLength, err := validateInt64(r.PostForm, "dayDuration", 100)
 		if err != nil {
 			writeError(w, 400, err.Error())
@@ -104,13 +111,13 @@ func parseRepositoryHandler(local bool) http.HandlerFunc {
 			writeError(w, 400, err.Error())
 			return
 		}
+		path, err := validateString(r.PostForm, "path", nil)
+		if err != nil {
+			writeError(w, 400, "wrong path")
+			return
+		}
 		if repoType == "local" {
-			path, err := validateString(r.PostForm, "path", nil)
-			if err != nil {
-				writeError(w, 400, "wrong path")
-				return
-			}
-			res, err := readLocalRepository(path, dayLength, maxCommitLength)
+			res, err := readLocalRepository(path, branch, dayLength, maxCommitLength)
 			if err != nil {
 				log.Printf("read local repository err: %v\n", err)
 				writeError(w, 500, "read repo failed")
@@ -118,7 +125,26 @@ func parseRepositoryHandler(local bool) http.HandlerFunc {
 			}
 			writeSuccess(w, res)
 		} else if repoType == "remote" {
-		
+			pathSplitted := strings.Split(path, "/")
+			if len(pathSplitted) < 2 {
+				writeError(w, 400, "wrong path")
+				return
+			}
+			name := strings.TrimSuffix(pathSplitted[len(pathSplitted)-1], ".git")
+			if !repositoryExist(name, dir) {
+				if err := cloneRepository(path, dir); err != nil {
+					log.Printf("clone local respository err: %v\n", err)
+					writeError(w, 500, "clone repo failed")
+					return
+				}
+			}
+			res, err := readLocalRepository(filepath.Join(dir, name), branch, dayLength, maxCommitLength)
+			if err != nil {
+				log.Printf("read remote repository err: %v\n", err)
+				writeError(w, 500, "read remote repo failed")
+				return
+			}
+			writeSuccess(w, res)
 		}
 	}
 }
@@ -127,13 +153,15 @@ func main() {
 	var (
 		local bool
 		port  int
+		dir string
 	)
 	flag.BoolVar(&local, "h", true, "is localhost")
 	flag.IntVar(&port, "port", 8080, "server port")
+	flag.StringVar(&dir, "dir", "", "repos dir")
 	flag.Parse()
 	if port <= 0 || port >= 65536 {
 		log.Fatalf("wrong usage: %d port is invalid", port)
 	}
-	http.Handle("/api/repository", parseRepositoryHandler(local))
+	http.Handle("/api/repository", parseRepositoryHandler(local, dir))
 	log.Fatalln(http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil))
 }
