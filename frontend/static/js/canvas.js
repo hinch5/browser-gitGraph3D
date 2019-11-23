@@ -178,6 +178,10 @@ class Canvas {
 			ctx.fillText(name, clientX, clientY);
 		}
 	};
+	
+	isEnd = () => {
+		return this.graph.isEnd();
+	};
 
 	get width() {
 		return this.canvas.width;

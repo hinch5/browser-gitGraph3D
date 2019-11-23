@@ -8,7 +8,7 @@ import (
 
 func repositoryExist(name, dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, name))
-	return err != nil
+	return err == nil
 }
 
 func cloneRepository(path, dir string) error {

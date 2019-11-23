@@ -249,6 +249,9 @@ class Graph {
 			this.edgeColors = [];
 		}
 	};
+	isEnd = () => {
+		return this.updateIndex === this.updates.length
+	};
 	checkSkip = () => {
 		if (this.updateIndex > 0 && this.updateIndex < this.updates.length) {
 			if (this.now > this.updates[this.updateIndex - 1].expireDate) {

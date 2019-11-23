@@ -37,6 +37,7 @@ class WorkSpace {
 	skip;
 	dayDuration;
 	paused;
+	ended;
 	updates;
 
 	constructor() {
@@ -46,6 +47,7 @@ class WorkSpace {
 		this.begin = Date.now();
 		this.processing = false;
 		this.paused = false;
+		this.ended = false;
 		window.addEventListener('keydown', this.transformation);
 		window.addEventListener('resize', this.resize);
 
@@ -231,8 +233,9 @@ class WorkSpace {
 		}
 	};
 	drawScene = () => {
+		this.ended = this.canvas.isEnd();
 		let delta = 0;
-		if (!this.paused) {
+		if (!this.paused && !this.ended) {
 			if (!this.now) {
 				this.now = Date.now();
 				delta = 0;
