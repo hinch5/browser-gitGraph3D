@@ -60,7 +60,6 @@ class Vertex {
 	radius;
 	coords;
 	normals;
-	indices;
 	colors;
 	color;
 	skip;
@@ -81,14 +80,14 @@ class Vertex {
 		this.color = [0.0, 1.0, 0.0, 1.0];
 	}
 
-	buildSphere = (height, skip, radius) => {
+	buildSphere = (height, radius) => {
 		this.coords = [];
 		this.colors = [];
 		let x, y, z, xz;
 		this.centerX = this.boundRect.centerX;
 		this.centerY = GRAPH_HEIGHT / 2 - (this.level * (GRAPH_HEIGHT / height)) - (GRAPH_HEIGHT / (2 * height));
 		this.centerZ = this.boundRect.centerY;
-		const minRect = Math.min(this.boundRect.width/2, this.boundRect.height/2, GRAPH_HEIGHT / (4 * height));
+		const minRect = Math.min(this.boundRect.width / 2, this.boundRect.height / 2, GRAPH_HEIGHT / (4 * height));
 		if (radius <= minRect) {
 			this.radius = radius;
 		} else {
@@ -109,25 +108,8 @@ class Vertex {
 				this.colors.push(this.color[0], this.color[1], this.color[2], this.color[3]);
 			}
 		}
-		this.buildIndices(skip);
 		this.coords.push(this.centerX, this.centerY, this.centerZ, 1.0);
 		this.colors.push(1.0, 1.0, 1.0, 1.0);
-	};
-	buildIndices = (skip) => {
-		this.indices = [];
-		this.skip = skip;
-		for (let i = 0; i < SPHERE_STACK_COUNT; i++) {
-			let k1 = i * (SPHERE_SECTOR_COUNT + 1);
-			let k2 = k1 + SPHERE_SECTOR_COUNT + 1;
-			for (let j = 0; j < SPHERE_SECTOR_COUNT; j++, k1++, k2++) {
-				if (i !== 0) {
-					this.indices.push(skip + k1, skip + k2, skip + k1 + 1);
-				}
-				if (i !== (SPHERE_STACK_COUNT - 1)) {
-					this.indices.push(skip + k1 + 1, skip + k2, skip + k2 + 1);
-				}
-			}
-		}
 	};
 
 	calcMoves = (delta) => {
@@ -167,62 +149,58 @@ class Vertex {
 			|| (this.transparencySpeed && this.transparencySpeed !== 0) || (this.removeSpeed && this.removeSpeed !== 0));
 	};
 
-	calcAcceleration = (height, skip, radius, rect, t) => {
-		if (this.radius !== radius) {
-			this.buildSphere(height, skip, radius);
-		}
-		this.buildIndices(skip);
+	calcAcceleration = (height, rect, t) => {
 		const centerX = rect.centerX;
 		const centerY = GRAPH_HEIGHT / 2 - (this.level * (GRAPH_HEIGHT / height)) - (GRAPH_HEIGHT / (2 * height));
 		const centerZ = rect.centerY;
 		const tSquare = t * t;
 		this.distance = [centerX - this.centerX, centerY - this.centerY, centerZ - this.centerZ];
 		this.acceleration = [4 * this.distance[0] / tSquare, 4 * this.distance[1] / tSquare, 4 * this.distance[2] / tSquare];
-		this.centerX = centerX;
-		this.centerY = centerY;
-		this.centerZ = centerZ;
 		this.time = t;
 		this.boundRect = rect;
 	};
 
-	resetAcceleration = () => {
+	resetAcceleration = (coords) => {
 		if (this.acceleration) {
 			for (let i = 0; i < this.coords.length / 4; i++) {
 				this.coords[4 * i] += this.distance[0];
 				this.coords[4 * i + 1] += this.distance[1];
 				this.coords[4 * i + 2] += this.distance[2];
+				coords[4 * (this.skip + i)] = this.coords[4 * i];
+				coords[4 * (this.skip + i) + 1] = this.coords[4 * i + 1];
+				coords[4 * (this.skip + i) + 2] = this.coords[4 * i + 2];
 			}
+			this.centerX += this.distance[0];
+			this.centerY += this.distance[1];
+			this.centerZ += this.distance[2];
 		}
 		this.acceleration = null;
 	};
 
-	calcTransparencySpeed = (height, skip, radius, t) => {
-		this.buildSphere(height, skip, radius);
+	calcTransparencySpeed = (height, t) => {
 		this.transparencySpeed = 1.0 / t;
 		this.time = t;
 	};
 
-	resetTransparencySpeed = () => {
+	resetTransparencySpeed = (colors) => {
 		if (this.transparencySpeed) {
 			for (let i = 0; i < this.colors.length / 4 - 1; i++) {
+				colors[(this.skip + i) * 4 + 1] = 1.0;
 				this.colors[i * 4 + 1] = 1.0;
 			}
 		}
 		this.transparencySpeed = null;
 	};
 
-	calcRemoveSpeed = (height, skip, radius, t) => {
-		if (this.radius !== radius) {
-			this.buildSphere(height, skip, radius);
-		}
-		this.buildIndices(skip);
+	calcRemoveSpeed = (height, t) => {
 		this.removeSpeed = 1.0 / t;
 		this.time = t;
 	};
 
-	resetRemoveSpeed = () => {
+	resetRemoveSpeed = (colors) => {
 		if (this.removeSpeed) {
 			for (let i = 0; i < this.colors.length / 4 - 1; i++) {
+				colors[(this.skip + i) * 4 + 1] = 0.0;
 				this.colors[i * 4 + 1] = 0.0;
 			}
 		}
@@ -245,6 +223,10 @@ class Vertex {
 		this.parent = parent;
 	}
 
+	set skip(skip) {
+		this.skip = skip;
+	}
+
 	get boundRect() {
 		return this.boundRect;
 	}
@@ -259,10 +241,6 @@ class Vertex {
 
 	get coords() {
 		return this.coords;
-	}
-
-	get indices() {
-		return this.indices;
 	}
 
 	get colors() {
@@ -361,9 +339,9 @@ class GitObject extends Vertex {
 		this.parent = parent;
 		this.size = 1;
 	}
-	
+
 	addChild = (child) => {
-		let l = 0, r = this.children.length, m = Math.floor(r/2);
+		let l = 0, r = this.children.length, m = Math.floor(r / 2);
 		const cmpInd = this.path.length;
 		if (this.children.length === 0) {
 			this.children.splice(0, 0, child);
@@ -376,7 +354,7 @@ class GitObject extends Vertex {
 				} else {
 					l = m;
 				}
-				m = Math.floor((r+l)/2);
+				m = Math.floor((r + l) / 2);
 			}
 			this.children.splice(r, 0, child);
 		}
@@ -387,8 +365,8 @@ class GitObject extends Vertex {
 		p.addSize(child.size);
 	};
 	removeChild = (child) => {
-		let l = 0, r = this.children.length, m = Math.floor(r/2);
-		const cmpInd = child.path.length-1;
+		let l = 0, r = this.children.length, m = Math.floor(r / 2);
+		const cmpInd = child.path.length - 1;
 		while (l < r - 1) {
 			if (this.children[m].path[cmpInd] === child.path[cmpInd]) {
 				break;
@@ -397,7 +375,7 @@ class GitObject extends Vertex {
 			} else {
 				l = m;
 			}
-			m = Math.floor((r+l)/2);
+			m = Math.floor((r + l) / 2);
 		}
 		this.children.splice(m, 1);
 		let p = this;

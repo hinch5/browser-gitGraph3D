@@ -18,6 +18,7 @@ const MIN_PERCENT_SPLIT = 0.25;
 const SPHERE_STACK_COUNT = 6;
 const SPHERE_SECTOR_COUNT = 6;
 const VERTEX_SIZE = (SPHERE_SECTOR_COUNT + 1) * (SPHERE_STACK_COUNT + 1);
+const INDEX_SIZE = 2 * SPHERE_SECTOR_COUNT * (SPHERE_STACK_COUNT - 1);
 const SKIP_COORDS = 1;
 const GRAPH_WIDTH = 1.4;
 const GRAPH_HEIGHT = 1.4;
@@ -36,6 +37,7 @@ class WorkSpace {
 	skip;
 	dayDuration;
 	paused;
+	updates;
 
 	constructor() {
 		this.angles = [0, 0, 0];
@@ -51,6 +53,7 @@ class WorkSpace {
 		this.resize();
 
 		this.validateForm();
+		this.validateGraphSubmit();
 	}
 
 	validateForm = () => {
@@ -62,6 +65,29 @@ class WorkSpace {
 		);
 		document.getElementById('repo-submit').disabled = !res;
 		return res;
+	};
+
+	validateGraphSubmit = () => {
+		const startDatePicker = document.getElementById('start-date-input'),
+			expireDatePicker = document.getElementById('expire-date-input');
+		if (!this.updates || !this.checkDate(startDatePicker.valueAsDate, expireDatePicker.valueAsDate)) {
+			document.getElementById('graph-submit').disabled = true;
+		} else {
+			document.getElementById('graph-submit').disabled = false;
+		}
+	};
+
+	checkDate = (startDate, expireDate) => {
+		if (startDate && startDate < this.begin) {
+			return false;
+		}
+		if (expireDate && expireDate < this.begin) {
+			return false;
+		}
+		if (startDate && expireDate && startDate >= expireDate) {
+			return false;
+		}
+		return true;
 	};
 
 	checkParams = (path, dayDuration, maxCommitDuration, skipDuration) => {
@@ -118,11 +144,14 @@ class WorkSpace {
 							fileUpdates
 						));
 					}
-					this.graph = new Graph(updates);
-					this.canvas.graph = this.graph;
-					this.canvas.initBuffers();
-					document.getElementById('main').removeChild(document.getElementById('manager'));
-					this.drawScene();
+					this.updates = updates;
+					document.getElementById('graph-submit').value = new Date(this.begin);
+					document.getElementById('graph-info-text').innerText =
+						'Дата начала: ' + new Date(this.begin).toDateString() + '\n' +
+						'Количество коммитов: ' + this.updates.length + '\n' +
+						'Продолжительность визуализации: ' +
+						(this.updates[this.updates.length - 1].startDate + this.updates[this.updates.length - 1].duration) + 'мс';
+					this.validateGraphSubmit();
 				} else {
 					// handle error
 				}
@@ -132,6 +161,34 @@ class WorkSpace {
 				}
 			}
 		};
+	};
+	startGraph = () => {
+		const startDate = document.getElementById('start-date-input').valueAsDate,
+			expireDate = document.getElementById('expire-date-input').valueAsDate;
+		if (!this.checkDate(startDate, expireDate)) {
+			return;
+		}
+		if (expireDate) {
+			const delta = (expireDate.getTime() - this.begin)/(1000*60*60*24)*this.dayDuration;
+			let dropCount = 0;
+			for (let i = this.updates.length - 1; i > 0; i--) {
+				if (this.updates[i].startDate - 1000 <= delta) {
+					break;
+				}
+				dropCount++;
+			}
+			this.updates.splice(this.updates.length - 1 - dropCount, dropCount);
+		}
+		this.graph = new Graph(this.updates);
+		this.canvas.graph = this.graph;
+		if (startDate) {
+			const delta = (startDate.getTime() - this.begin)/(1000*60*60*24)*this.dayDuration;
+			this.graph.iterate(delta);
+			this.begin = startDate.getTime();
+		}
+		this.canvas.initBuffers();
+		document.getElementById('main').removeChild(document.getElementById('manager'));
+		this.drawScene();
 	};
 
 	transformation = (ev) => {

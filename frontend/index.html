@@ -78,6 +78,16 @@
 		</div>
 	</div>
 	<div class="form-submit">
+		<div id="graph-info">
+			<div class="date-input-container">
+				<input id="start-date-input" type="date" oninput="space.validateGraphSubmit()">
+				<input id="expire-date-input" type="date" oninput="space.validateGraphSubmit()">
+			</div>
+			<div id="graph-info-text">
+
+			</div>
+			<button id="graph-submit" onclick="space.startGraph()">Start</button>
+		</div>
 		<button id="repo-submit" onclick="space.loadGraph()">Submit</button>
 	</div>
 </div>

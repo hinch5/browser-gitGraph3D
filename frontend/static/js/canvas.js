@@ -42,6 +42,7 @@ class Canvas {
 			this.GL.enable(this.GL.BLEND);
 			this.GL.blendFunc(this.GL.SRC_ALPHA, this.GL.ONE_MINUS_SRC_ALPHA);
 			this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
+			this.GL.getExtension('OES_element_index_uint');
 		}
 		
 		this.graphProgram = new Program(this.GL, 'vertex-shader', 'fragment-shader');
@@ -95,7 +96,7 @@ class Canvas {
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.normalBuffer);
 		this.GL.vertexAttribPointer(this.graphProgram.normalAttrib, 3, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-		this.GL.drawElements(this.GL.TRIANGLES, this.graph.indices.length, this.GL.UNSIGNED_SHORT, 0);
+		this.GL.drawElements(this.GL.TRIANGLES, this.graph.indices.length, this.GL.UNSIGNED_INT, 0);
 
 		this.edgeProgram.use();
 		this.modelUniform = this.edgeProgram.getUniformLocation('model');
@@ -110,7 +111,7 @@ class Canvas {
 		this.GL.vertexAttribPointer(this.edgeProgram.colorAttrib, 4, this.GL.FLOAT, true, 0, 0);
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
 		
-		this.GL.drawElements(this.GL.LINES, this.graph.edgeIndices.length, this.GL.UNSIGNED_SHORT, 0);
+		this.GL.drawElements(this.GL.LINES, this.graph.edgeIndices.length, this.GL.UNSIGNED_INT, 0);
 
 		this.GL.drawArrays(this.GL.LINES, this.graph.coords.length / 4, this.graph.edgeCoords.length / 4);
 	};
@@ -122,11 +123,11 @@ class Canvas {
 
 		this.indexBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.graph.indices), this.GL.DYNAMIC_DRAW);
+		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint32Array(this.graph.indices), this.GL.DYNAMIC_DRAW);
 
 		this.indexBufferEdges = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
-		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.graph.edgeIndices), this.GL.DYNAMIC_DRAW);
+		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint32Array(this.graph.edgeIndices), this.GL.DYNAMIC_DRAW);
 
 		this.colorBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
