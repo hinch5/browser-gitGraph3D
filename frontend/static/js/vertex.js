@@ -58,9 +58,7 @@ class Vertex {
 	centerY;
 	centerZ;
 	radius;
-	coords;
 	normals;
-	colors;
 	color;
 	skip;
 	level;
@@ -69,6 +67,7 @@ class Vertex {
 	removeSpeed;
 	removing;
 	time;
+	now;
 	distance;
 
 	constructor(level) {
@@ -76,13 +75,12 @@ class Vertex {
 		this.acceleration = null;
 		this.transparencySpeed = null;
 		this.removeSpeed = null;
+		this.skip = null;
 		this.removing = false;
 		this.color = [0.0, 1.0, 0.0, 1.0];
 	}
 
-	buildSphere = (height, radius) => {
-		this.coords = [];
-		this.colors = [];
+	buildSphere = (height, radius, coords, colors) => {
 		let x, y, z, xz;
 		this.centerX = this.boundRect.centerX;
 		this.centerY = GRAPH_HEIGHT / 2 - (this.level * (GRAPH_HEIGHT / height)) - (GRAPH_HEIGHT / (2 * height));
@@ -104,12 +102,26 @@ class Vertex {
 				z = this.centerZ + xz * Math.sin(sectorAngle);
 				x = this.centerX + xz * Math.cos(sectorAngle);
 
-				this.coords.push(x, y, z, 1.0);
-				this.colors.push(this.color[0], this.color[1], this.color[2], this.color[3]);
+				coords[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4] = x;
+				coords[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 1] = y;
+				coords[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 2] = z;
+				coords[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 3] = 1.0;
+
+				colors[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4] = this.color[0];
+				colors[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 1] = this.color[1];
+				colors[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 2] = this.color[2];
+				colors[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 3] = this.color[3];
 			}
 		}
-		this.coords.push(this.centerX, this.centerY, this.centerZ, 1.0);
-		this.colors.push(1.0, 1.0, 1.0, 1.0);
+		coords[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4] = this.centerX;
+		coords[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 1] = this.centerY;
+		coords[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 2] = this.centerZ;
+		coords[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 3] = 1.0;
+
+		colors[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4] = 1.0;
+		colors[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 1] = 1.0;
+		colors[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 2] = 1.0;
+		colors[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 3] = 1.0;
 	};
 
 	calcMoves = (delta) => {
@@ -124,22 +136,27 @@ class Vertex {
 				this.acceleration[2] * this.time * this.time / 8 + this.acceleration[2] * (this.time / 2) * t - this.acceleration[2] * t2 / 2];
 		}
 	};
+	calcMoves1 = (delta) => {
+		const mv1 = this.calcMoves(this.now), mv2 = this.calcMoves(delta);
+		this.now = delta;
+		return [mv2[0] - mv1[0], mv2[1] - mv1[1], mv2[2] - mv1[2]];
+	};
 	move = (coords, colors, delta) => {
 		if (this.acceleration) {
-			const moves = this.calcMoves(delta);
+			const moves = this.calcMoves1(delta);
 			for (let i = 0; i < 3; i++) {
-				for (let j = 0; j < this.coords.length / 4; j++) {
-					coords[4 * (j + this.skip) + i] = this.coords[4 * j + i] + moves[i];
+				for (let j = 0; j < VERTEX_SIZE + SKIP_COORDS; j++) {
+					coords[4 * (j + this.skip) + i] += moves[i];
 				}
 			}
 		}
 		if (this.transparencySpeed) {
-			for (let i = 0; i < this.colors.length / 4 - 1; i++) {
+			for (let i = 0; i < VERTEX_SIZE; i++) {
 				colors[(i + this.skip) * 4 + 1] = delta * this.transparencySpeed;
 			}
 		}
 		if (this.removeSpeed) {
-			for (let i = 0; i < this.colors.length / 4 - 1; i++) {
+			for (let i = 0; i < VERTEX_SIZE; i++) {
 				colors[(i + this.skip) * 4 + 1] = 1.0 - delta * this.removeSpeed;
 			}
 		}
@@ -157,19 +174,13 @@ class Vertex {
 		this.distance = [centerX - this.centerX, centerY - this.centerY, centerZ - this.centerZ];
 		this.acceleration = [4 * this.distance[0] / tSquare, 4 * this.distance[1] / tSquare, 4 * this.distance[2] / tSquare];
 		this.time = t;
+		this.now = 0;
 		this.boundRect = rect;
 	};
 
-	resetAcceleration = (coords) => {
+	resetAcceleration = (coords, colors) => {
 		if (this.acceleration) {
-			for (let i = 0; i < this.coords.length / 4; i++) {
-				this.coords[4 * i] += this.distance[0];
-				this.coords[4 * i + 1] += this.distance[1];
-				this.coords[4 * i + 2] += this.distance[2];
-				coords[4 * (this.skip + i)] = this.coords[4 * i];
-				coords[4 * (this.skip + i) + 1] = this.coords[4 * i + 1];
-				coords[4 * (this.skip + i) + 2] = this.coords[4 * i + 2];
-			}
+			this.move(coords, colors, this.time);
 			this.centerX += this.distance[0];
 			this.centerY += this.distance[1];
 			this.centerZ += this.distance[2];
@@ -180,13 +191,13 @@ class Vertex {
 	calcTransparencySpeed = (height, t) => {
 		this.transparencySpeed = 1.0 / t;
 		this.time = t;
+		this.now = 0;
 	};
 
 	resetTransparencySpeed = (colors) => {
 		if (this.transparencySpeed) {
-			for (let i = 0; i < this.colors.length / 4 - 1; i++) {
+			for (let i = 0; i < VERTEX_SIZE; i++) {
 				colors[(this.skip + i) * 4 + 1] = 1.0;
-				this.colors[i * 4 + 1] = 1.0;
 			}
 		}
 		this.transparencySpeed = null;
@@ -195,13 +206,13 @@ class Vertex {
 	calcRemoveSpeed = (height, t) => {
 		this.removeSpeed = 1.0 / t;
 		this.time = t;
+		this.now = 0;
 	};
 
 	resetRemoveSpeed = (colors) => {
 		if (this.removeSpeed) {
-			for (let i = 0; i < this.colors.length / 4 - 1; i++) {
+			for (let i = 0; i < VERTEX_SIZE; i++) {
 				colors[(this.skip + i) * 4 + 1] = 0.0;
-				this.colors[i * 4 + 1] = 0.0;
 			}
 		}
 		this.removeSpeed = null;
@@ -239,14 +250,6 @@ class Vertex {
 		return this.level;
 	}
 
-	get coords() {
-		return this.coords;
-	}
-
-	get colors() {
-		return this.colors;
-	}
-
 	get skip() {
 		return this.skip;
 	}
@@ -268,12 +271,21 @@ class GitContributor extends Vertex {
 	edgeColors;
 	edgeNormals;
 
-	constructor(name) {
+	constructor(name, color) {
 		super(0);
 		this.name = name;
 		this.edgeCoords = [];
 		this.edgeColors = [];
-		this.color = [1.0, 0.0, 0.0, 1.0];
+		if (!color) {
+			this.color = [1.0, 0.0, 0.0, 1.0];
+		} else {
+			this.color = [
+				Number.parseInt(color.substring(0, 2), 16) / 256,
+				Number.parseInt(color.substring(2, 4), 16) / 256,
+				Number.parseInt(color.substring(4, 6), 16) / 256,
+				1.0
+			]
+		}
 	}
 
 	buildEdges = (coords) => {
@@ -282,10 +294,10 @@ class GitContributor extends Vertex {
 		this.edgeNormals = [];
 		for (let i = 0; i < this.updates.length; i++) {
 			for (let j = 0; j < this.updates[i].vertexSet.length; j++) {
-				this.edgeCoords = this.edgeCoords.concat(coords.slice(this.skip * 4 + this.coords.length - 4, this.skip * 4 + this.coords.length));
+				this.edgeCoords = this.edgeCoords.concat(coords.slice((this.skip + VERTEX_SIZE) * 4, (this.skip + VERTEX_SIZE + SKIP_COORDS) * 4));
 				this.edgeCoords = this.edgeCoords.concat(coords.slice(
-					this.updates[i].vertexSet[j].skip * 4 + this.updates[i].vertexSet[j].coords.length - 4,
-					this.updates[i].vertexSet[j].skip * 4 + this.updates[i].vertexSet[j].coords.length)
+					(this.updates[i].vertexSet[j].skip + VERTEX_SIZE) * 4,
+					(this.updates[i].vertexSet[j].skip + VERTEX_SIZE + SKIP_COORDS) * 4)
 				);
 				if (this.updates[i].action === 0) {
 					this.edgeColors = this.edgeColors.concat([0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]);

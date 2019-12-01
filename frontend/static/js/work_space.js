@@ -1,22 +1,29 @@
-// 219 [
-// 221 ]
-// 37 left arrow
-// 38 up arrow
-// 39 right arrow
-// 40 down arrow
-// 173 -
-// 61 =
-// 81 q
-// 87 w
-// 69 e
-// 65 a
-// 83 s
-// 68 d
-// 32 space
+const ARROW_LEFT_KEY = 'ArrowLeft';
+const ARROW_UP_KEY = 'ArrowUp';
+const ARROW_RIGHT_KEY = 'ArrowRight';
+const ARROW_DOWN_KEY = 'ArrowDown';
+const BRACKET_LEFT_KEY = 'BracketLeft';
+const BRACKET_RIGHT_KEY = 'BracketRight';
+const EQUAL_KEY = 'Equal';
+const MINUS_KEY = 'Minus';
+const Q_KEY = 'KeyQ';
+const W_KEY = 'KeyW';
+const E_KEY = 'KeyE';
+const A_KEY = 'KeyA';
+const S_KEY = 'KeyS';
+const D_KEY = 'KeyD';
+const SPACE_KEY = 'Space';
+
+const DEGREE_PER_SECOND = 100;
+const SCALE_PER_SECOND = 0.5;
+const TRANSLATE_PER_SECOND = 0.5;
+const DEGREE_PER_MILLISECOND = DEGREE_PER_SECOND/1000;
+const SCALE_PER_MILLISECOND = SCALE_PER_SECOND/1000;
+const TRANSLATE_PER_MILLISECOND = TRANSLATE_PER_SECOND/1000;
 
 const MIN_PERCENT_SPLIT = 0.25;
-const SPHERE_STACK_COUNT = 6;
-const SPHERE_SECTOR_COUNT = 6;
+const SPHERE_STACK_COUNT = 8;
+const SPHERE_SECTOR_COUNT = 8;
 const VERTEX_SIZE = (SPHERE_SECTOR_COUNT + 1) * (SPHERE_STACK_COUNT + 1);
 const INDEX_SIZE = 2 * SPHERE_SECTOR_COUNT * (SPHERE_STACK_COUNT - 1);
 const SKIP_COORDS = 1;
@@ -26,12 +33,16 @@ const GRAPH_DEPTH = 1.4;
 
 class WorkSpace {
 	angles;
+	anglesSpeed;
 	translate;
+	translateSpeed;
 	scale;
+	scaleSpeed;
 	canvas;
 	graph;
 	aspectRatioBalance;
 	now;
+	fpsNow;
 	begin;
 	processing;
 	skip;
@@ -42,13 +53,17 @@ class WorkSpace {
 
 	constructor() {
 		this.angles = [0, 0, 0];
+		this.anglesSpeed = [false, false, false, false, false, false];
 		this.translate = [0, 0, 0];
+		this.translateSpeed = [false, false, false, false, false, false];
 		this.scale = 0.0;
+		this.scaleSpeed = [false, false];
 		this.begin = Date.now();
 		this.processing = false;
 		this.paused = false;
 		this.ended = false;
-		window.addEventListener('keydown', this.transformation);
+		window.addEventListener('keydown', this.startTransform(true));
+		window.addEventListener('keyup', this.startTransform(false));
 		window.addEventListener('resize', this.resize);
 
 		this.canvas = new Canvas();
@@ -199,42 +214,80 @@ class WorkSpace {
 		this.drawScene();
 	};
 
-	transformation = (ev) => {
-		if (ev.keyCode === 219) {
-			this.angles[2] += this.angles[2] === 358 ? -358 : 2;
-		} else if (ev.keyCode === 221) {
-			this.angles[2] -= this.angles[2] === 0 ? -358 : 2;
-		} else if (ev.keyCode === 37) {
-			this.angles[1] -= this.angles[1] === 0 ? -358 : 2;
-		} else if (ev.keyCode === 38) {
-			this.angles[0] -= this.angles[0] === 0 ? -358 : 2;
-		} else if (ev.keyCode === 39) {
-			this.angles[1] += this.angles[1] === 358 ? -358 : 2;
-		} else if (ev.keyCode === 40) {
-			this.angles[0] += this.angles[0] === 358 ? -358 : 2;
-		} else if (ev.keyCode === 61) {
-			this.scale += 0.01;
-		} else if (ev.keyCode === 173) {
-			this.scale -= 0.01;
-		} else if (ev.keyCode === 81) {
-			this.translate[2] += 0.01;
-		} else if (ev.keyCode === 87) {
-			this.translate[1] += 0.01;
-		} else if (ev.keyCode === 69) {
-			this.translate[2] -= 0.01;
-		} else if (ev.keyCode === 65) {
-			this.translate[0] -= 0.01;
-		} else if (ev.keyCode === 83) {
-			this.translate[1] -= 0.01;
-		} else if (ev.keyCode === 68) {
-			this.translate[0] += 0.01;
-		} else if (ev.keyCode === 32) {
-			this.paused = !this.paused;
+	startTransform = (action) => {
+		return (ev) => {
+			if (ev.code === BRACKET_LEFT_KEY) {
+				this.anglesSpeed[4] = action;
+			} else if (ev.code === BRACKET_RIGHT_KEY) {
+				this.anglesSpeed[5] = action;
+			} else if (ev.code === ARROW_LEFT_KEY) {
+				this.anglesSpeed[3] = action;
+			} else if (ev.code === ARROW_UP_KEY) {
+				this.anglesSpeed[1] = action;
+			} else if (ev.code === ARROW_RIGHT_KEY) {
+				this.anglesSpeed[2] = action;
+			} else if (ev.code === ARROW_DOWN_KEY) {
+				this.anglesSpeed[0] = action;
+			} else if (ev.code === EQUAL_KEY) {
+				this.scaleSpeed[0] = action;
+			} else if (ev.code === MINUS_KEY) {
+				this.scaleSpeed[1] = action;
+			} else if (ev.code === Q_KEY) {
+				this.translateSpeed[4] = action;
+			} else if (ev.code === W_KEY) {
+				this.translateSpeed[2] = action;
+			} else if (ev.code === E_KEY) {
+				this.translateSpeed[5] = action;
+			} else if (ev.code === A_KEY) {
+				this.translateSpeed[1] = action;
+			} else if (ev.code === S_KEY) {
+				this.translateSpeed[3] = action;
+			} else if (ev.code === D_KEY) {
+				this.translateSpeed[0] = action;
+			} else if (ev.code === SPACE_KEY && action) {
+				this.paused = !this.paused;
+			}
 		}
+	};
+
+	boolToInt = (v) => {
+		return v ? 1 : 0
+	};
+	formatAngle = (v) => {
+		const x = v % 360;
+		return x < 0 ? 360 + x : x;
+	};
+	iterateTransform = (delta) => {
+		this.angles[0] += delta * this.boolToInt(this.anglesSpeed[0]) * DEGREE_PER_MILLISECOND;
+		this.angles[0] -= delta * this.boolToInt(this.anglesSpeed[1]) * DEGREE_PER_MILLISECOND;
+		this.angles[1] += delta * this.boolToInt(this.anglesSpeed[2]) * DEGREE_PER_MILLISECOND;
+		this.angles[1] -= delta * this.boolToInt(this.anglesSpeed[3]) * DEGREE_PER_MILLISECOND;
+		this.angles[2] += delta * this.boolToInt(this.anglesSpeed[4]) * DEGREE_PER_MILLISECOND;
+		this.angles[2] -= delta * this.boolToInt(this.anglesSpeed[5]) * DEGREE_PER_MILLISECOND;
+		this.angles[0] = this.formatAngle(this.angles[0]);
+		this.angles[1] = this.formatAngle(this.angles[1]);
+		this.angles[2] = this.formatAngle(this.angles[2]);
+		this.translate[0] += delta * this.boolToInt(this.translateSpeed[0]) * TRANSLATE_PER_MILLISECOND;
+		this.translate[0] -= delta * this.boolToInt(this.translateSpeed[1]) * TRANSLATE_PER_MILLISECOND;
+		this.translate[1] += delta * this.boolToInt(this.translateSpeed[2]) * TRANSLATE_PER_MILLISECOND;
+		this.translate[1] -= delta * this.boolToInt(this.translateSpeed[3]) * TRANSLATE_PER_MILLISECOND;
+		this.translate[2] += delta * this.boolToInt(this.translateSpeed[4]) * TRANSLATE_PER_MILLISECOND;
+		this.translate[2] -= delta * this.boolToInt(this.translateSpeed[5]) * TRANSLATE_PER_MILLISECOND;
+		this.scale += delta * this.boolToInt(this.scaleSpeed[0]) * SCALE_PER_MILLISECOND;
+		this.scale -= delta * this.boolToInt(this.scaleSpeed[1]) * SCALE_PER_MILLISECOND;
 	};
 	drawScene = () => {
 		this.ended = this.canvas.isEnd();
-		let delta = 0;
+		let delta = 0, deltaFps = 0;
+		if (!this.fpsNow) {
+			this.fpsNow = Date.now();
+			deltaFps = 0;
+		} else {
+			const t = Date.now();
+			deltaFps = t - this.fpsNow;
+			this.fpsNow = t;
+		}
+		this.iterateTransform(deltaFps);
 		if (!this.paused && !this.ended) {
 			if (!this.now) {
 				this.now = Date.now();
@@ -261,9 +314,9 @@ class WorkSpace {
 		glMatrix.mat4.fromTranslation(view, glMatrix.vec3.fromValues(this.translate[0], this.translate[1], this.translate[2]));
 		glMatrix.mat4.invert(normalModel, model);
 		glMatrix.mat4.transpose(normalModel, normalModel);
-		this.canvas.draw(model, view, normalModel, delta, this.begin);
+		this.canvas.draw(model, view, normalModel, delta, this.begin, deltaFps);
 
-		setTimeout(this.drawScene, 20);
+		setTimeout(this.drawScene, 15);
 	};
 	resize = () => {
 		this.canvas.resize();

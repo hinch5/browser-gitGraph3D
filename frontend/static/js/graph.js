@@ -78,6 +78,7 @@ class Graph {
 	edgeIndices;
 	contributors;
 	currentContributor;
+	contributorColors;
 	updates;
 	now;
 	updateIndex;
@@ -93,6 +94,7 @@ class Graph {
 		this.height = 1;
 		this.heightMap = new Map();
 		this.heightMap.set(1, 1);
+		this.contributorColors = new Map();
 		this.coords = [];
 		this.indices = [];
 		this.colors = [];
@@ -134,6 +136,11 @@ class Graph {
 		this.sphereNormal.push(0.0, 0.0, -1.0);
 	};
 
+	randomColor = () => {
+		return Math.floor(256*Math.random()).toString(16) +
+			Math.floor(256*Math.random()).toString(16) +
+			Math.floor(256*Math.random()).toString(16)
+	};
 	startUpdate = () => {
 		this.newVertices = 0;
 		this.operating = true;
@@ -157,7 +164,14 @@ class Graph {
 			}
 			if (contributorInd === null) {
 				contributorInd = this.contributors.length;
-				this.contributors.push(new GitContributor(this.updates[this.updateIndex].name));
+				let color;
+				if (this.contributorColors.has(this.updates[this.updateIndex].name)) {
+					color = this.contributorColors.get(this.updates[this.updateIndex].name);
+				} else {
+					color = this.randomColor();
+					this.contributorColors.set(this.updates[this.updateIndex].name, color)
+				}
+				this.contributors.push(new GitContributor(this.updates[this.updateIndex].name, color));
 				this.newVertices++;
 			}
 			this.currentContributor = this.contributors[contributorInd];
@@ -195,14 +209,14 @@ class Graph {
 	};
 	finishUpdate = () => {
 		for (let i = 0; i < this.contributors.length; i++) {
-			this.contributors[i].resetAcceleration(this.coords);
 			this.contributors[i].resetTransparencySpeed(this.colors);
 			this.contributors[i].resetRemoveSpeed(this.colors);
+			this.contributors[i].resetAcceleration(this.coords, this.colors);
 		}
 		for (let i = 0; i < this.movingVertices.length; i++) {
-			this.movingVertices[i].resetAcceleration(this.coords);
 			this.movingVertices[i].resetTransparencySpeed(this.colors);
 			this.movingVertices[i].resetRemoveSpeed(this.colors);
+			this.movingVertices[i].resetAcceleration(this.coords, this.colors);
 		}
 		if (this.updates[this.updateIndex].name !== '') {
 			const updateFiles = this.updates[this.updateIndex].updates;
@@ -342,32 +356,24 @@ class Graph {
 			if (vertexSet[0].length === 1) {
 				if (vertexSet[0][0].haveContributor()) {
 					const rectSplitted = vertexSet[1].split(0.5);
-					if (vertexSet[0][0].contributor.coords) {
+					if (vertexSet[0][0].contributor.skip === null) {
+						this.addVertexToBuffer(vertexSet[0][0].contributor, vertexSet[0][0].level, rectSplitted[1], skip);
+						skip += VERTEX_SIZE + SKIP_COORDS;
+					} else {
 						const newR = this.calcRadius(vertexSet[0][0].level + 1, rectSplitted[1]);
 						if (newR !== vertexSet[0][0].contributor.radius) {
-							vertexSet[0][0].contributor.buildSphere(this.height, newR);
-							this.rebuildVertex(vertexSet[0][0].contributor);
+							vertexSet[0][0].contributor.buildSphere(this.height, newR, this.coords, this.colors);
 						}
 						vertexSet[0][0].contributor.calcAcceleration(this.height, rectSplitted[1], duration);
-					} else {
-						vertexSet[0][0].contributor.boundRect = rectSplitted[1];
-						vertexSet[0][0].contributor.buildSphere(this.height, this.calcRadius(vertexSet[0][0].level + 1, rectSplitted[1]));
-						vertexSet[0][0].contributor.skip = skip;
-						skip += VERTEX_SIZE + SKIP_COORDS;
-						this.addVertexToBuffer(vertexSet[0][0].contributor);
 					}
-					if (!vertexSet[0][0].coords) {
-						vertexSet[0][0].boundRect = rectSplitted[0];
-						vertexSet[0][0].buildSphere(this.height, this.calcRadius(vertexSet[0][0].level + 1, rectSplitted[0]));
-						vertexSet[0][0].skip = skip;
+					if (vertexSet[0][0].skip === null) {
+						this.addVertexToBuffer(vertexSet[0][0], vertexSet[0][0].level, rectSplitted[0], skip);
 						skip += VERTEX_SIZE + SKIP_COORDS;
 						vertexSet[0][0].calcTransparencySpeed(this.height, duration);
-						this.addVertexToBuffer(vertexSet[0][0]);
 					} else {
 						const newR = this.calcRadius(vertexSet[0][0].level + 1, rectSplitted[0]);
 						if (newR !== vertexSet[0][0].radius) {
-							vertexSet[0][0].buildSphere(this.height, newR);
-							this.rebuildVertex(vertexSet[0][0]);
+							vertexSet[0][0].buildSphere(this.height, newR, this.coords, this.colors);
 						}
 						if (vertexSet[0][0].removing) {
 							vertexSet[0][0].calcRemoveSpeed(this.height, duration);
@@ -379,18 +385,14 @@ class Graph {
 					}
 					this.orderedVertices.push(vertexSet[0][0].contributor);
 				} else {
-					if (!vertexSet[0][0].coords) {
-						vertexSet[0][0].boundRect = vertexSet[1];
-						vertexSet[0][0].buildSphere(this.height, this.calcRadius(vertexSet[0][0].level + 1, vertexSet[1]));
-						vertexSet[0][0].skip = skip;
+					if (vertexSet[0][0].skip === null) {
+						this.addVertexToBuffer(vertexSet[0][0], vertexSet[0][0].level, vertexSet[1], skip);
 						skip += VERTEX_SIZE + SKIP_COORDS;
 						vertexSet[0][0].calcTransparencySpeed(this.height, duration);
-						this.addVertexToBuffer(vertexSet[0][0]);
 					} else {
 						const newR = this.calcRadius(vertexSet[0][0].level + 1, vertexSet[1]);
 						if (newR !== vertexSet[0][0].radius) {
-							vertexSet[0][0].buildSphere(this.height, newR);
-							this.rebuildVertex(vertexSet[0][0]);
+							vertexSet[0][0].buildSphere(this.height, newR, this.coords, this.colors);
 						}
 						if (vertexSet[0][0].removing) {
 							vertexSet[0][0].calcRemoveSpeed(this.height, duration);
@@ -409,10 +411,8 @@ class Graph {
 				}
 				this.orderedVertices.push(vertexSet[0][0]);
 			} else {
-				let fullSize = 0, firstSet = 0, firstInd = 0;
-				for (let i = 0; i < vertexSet[0].length; i++) {
-					fullSize += vertexSet[0][i].size;
-				}
+				let firstSet = 0, firstInd = 0;
+				const fullSize = vertexSet[0].reduce((res, current) => res + current.size, 0);
 				for (let i = 0; i < vertexSet[0].length; i++) {
 					firstSet += vertexSet[0][i].size;
 					firstInd++;
@@ -445,10 +445,11 @@ class Graph {
 			}
 		}
 	};
-	addVertexToBuffer = (vertex) => {
+	addVertexToBuffer = (vertex, level, rect, skip) => {
+		vertex.boundRect = rect;
+		vertex.skip = skip;
+		vertex.buildSphere(this.height, this.calcRadius(level + 1, rect), this.coords, this.colors);
 		this.buildIndices(vertex.skip);
-		this.coords = this.coords.concat(vertex.coords);
-		this.colors = this.colors.concat(vertex.colors);
 		this.normals = this.normals.concat(this.sphereNormal);
 		this.skipMap.set(vertex.skip, vertex);
 	};
@@ -471,11 +472,6 @@ class Graph {
 		this.colors.splice(last * 4, (VERTEX_SIZE + SKIP_COORDS) * 4);
 		this.normals.splice(last * 4, (VERTEX_SIZE + SKIP_COORDS) * 3);
 		this.indices.splice((this.root.size + this.contributors.length - 1) * (INDEX_SIZE * 3), INDEX_SIZE * 3);
-	};
-	rebuildVertex = (vertex) => {
-		for (let i = 0; i < vertex.coords.length; i++) {
-			this.coords[vertex.skip * 4 + i] = vertex.coords[i];
-		}
 	};
 	buildCoords = (delta) => {
 		if (this.operating && delta > 0) {
@@ -521,7 +517,7 @@ class Graph {
 		const modelView = glMatrix.mat4.create();
 		glMatrix.mat4.multiply(modelView, view, model);
 		for (let i = 0; i < this.orderedVertices.length; i++) {
-			let centerCoords = this.orderedVertices[i].coords.slice(this.orderedVertices[i].coords.length - 4);
+			let centerCoords = this.coords.slice((this.orderedVertices[i].skip + 1) * 4 - 4, (this.orderedVertices[i].skip + 1) * 4);
 			let center = glMatrix.vec4.fromValues(centerCoords[0], centerCoords[1], centerCoords[2], centerCoords[3]);
 			glMatrix.vec4.transformMat4(center, center, modelView);
 			const deltaX = center[0] - x;
@@ -542,16 +538,6 @@ class Graph {
 			return resVertices[0][1];
 		} else {
 			return null;
-		}
-	};
-
-	printDsf = () => {
-		console.log('print dsf');
-		const stack = [this.root];
-		while (stack.length !== 0) {
-			const v = stack.pop();
-			console.log(v.path, v.level, v.size, v.skip, v.haveContributor());
-			stack.push(...v.children);
 		}
 	};
 

@@ -17,6 +17,8 @@ class Canvas {
 	font;
 	graphProgram;
 	edgeProgram;
+	fps;
+	fpsAvg;
 
 	constructor() {
 		this.canvas = document.getElementById('graph');
@@ -44,9 +46,16 @@ class Canvas {
 			this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
 			this.GL.getExtension('OES_element_index_uint');
 		}
+		this.fps = [];
 		
 		this.graphProgram = new Program(this.GL, 'vertex-shader', 'fragment-shader');
 		this.edgeProgram = new Program(this.GL, 'vertex-simple-shader', 'fragment-shader');
+
+		this.vertexBuffer = this.GL.createBuffer();
+		this.indexBuffer = this.GL.createBuffer();
+		this.indexBufferEdges = this.GL.createBuffer();
+		this.colorBuffer = this.GL.createBuffer();
+		this.normalBuffer = this.GL.createBuffer();
 	}
 	
 	clear = () => {
@@ -75,7 +84,7 @@ class Canvas {
 		}
 	};
 
-	draw = (model, view, normalModel, delta, begin) => {
+	draw = (model, view, normalModel, delta, begin, deltaFps) => {
 		this.graphProgram.use(true);
 		let name;
 		this.GL.clear(this.GL.COLOR_BUFFER_BIT | this.GL.DEPTH_BUFFER_BIT);
@@ -90,9 +99,12 @@ class Canvas {
 		if (this.deadInside) {
 			name = this.graph.getName(this.clientX, this.clientY, model, view);
 		}
+		if (!this.fpsAvg) {
+			this.fpsAvg = deltaFps;
+		}
 		this.initBuffers();
 
-		this.writeDate(begin, this.clientX, this.clientY, name);
+		this.writeDate(begin, this.clientX, this.clientY, name, deltaFps);
 
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
 		this.GL.vertexAttribPointer(this.graphProgram.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
@@ -122,23 +134,18 @@ class Canvas {
 	};
 	
 	initBuffers = () => {
-		this.vertexBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
 		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.coords.concat(this.graph.edgeCoords)), this.GL.DYNAMIC_DRAW);
 
-		this.indexBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint32Array(this.graph.indices), this.GL.DYNAMIC_DRAW);
 
-		this.indexBufferEdges = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
 		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint32Array(this.graph.edgeIndices), this.GL.DYNAMIC_DRAW);
 
-		this.colorBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
 		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.colors.concat(this.graph.edgeColors)), this.GL.DYNAMIC_DRAW);
 
-		this.normalBuffer = this.GL.createBuffer();
 		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.normalBuffer);
 		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.normals.concat(this.graph.edgeNormals)), this.GL.DYNAMIC_DRAW);
 	};
@@ -152,7 +159,7 @@ class Canvas {
 			this.GL.viewport(0, 0, this.canvas.width, this.canvas.height);
 		}
 	};
-	writeDate = (date, clientX, clientY, name) => {
+	writeDate = (date, clientX, clientY, name, delta) => {
 		const w = this.textCanvas.width;
 		const d = new Date(date);
 		const dateString = d.toISOString();
@@ -162,7 +169,14 @@ class Canvas {
 		ctx.font = this.font + 'px serif';
 		const textWidth = ctx.measureText(dateString).width;
 		const pos = (w / 2) - (textWidth / 2);
+		this.fps.push(delta);
+		if (this.fps.length === 10) {
+			this.fpsAvg = this.fps.reduce((sum, current, ind, x) => sum + current, 0)/10;
+			this.fps = [];
+		}
 		ctx.fillText(dateString, pos, this.font);
+		ctx.fillStyle = '#AAAA00';
+		ctx.fillText(Math.round(1000/this.fpsAvg).toFixed(0), 0, this.font);
 		if (name) {
 			clientX = (clientX + 1) * this.textCanvas.width / 2;
 			clientY = (-clientY + 1) * this.textCanvas.height / 2;

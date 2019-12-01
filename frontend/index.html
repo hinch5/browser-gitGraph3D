@@ -23,8 +23,7 @@
 			vec3 fragPos = vec3(model*position);
 			vec3 viewDir = normalize(vec3(0.0,0.0,-1.0) - fragPos);
     		vec3 reflectDir = reflect(-lightDir, norm);
-    		float spec = pow(max(dot(viewDir, reflectDir), 0.0), 16.0);
-    		outColor = vec4(0.2*vec3(color)+diff*vec3(color)+spec*vec3(color),1.0);
+    		outColor = vec4(0.2*vec3(color)+diff*vec3(color),1.0);
 		}
 	</script>
 	<script id="vertex-simple-shader" type="x-shader/x-vertex">

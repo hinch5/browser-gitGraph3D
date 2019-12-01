@@ -72,5 +72,4 @@ class Program {
 	get normalAttrib() {
 		return this.normalAttrib;
 	}
-
 }

@@ -128,7 +128,7 @@ func calcOperationsDuration(operations []GitOperation, dayDuration, maxCommitDur
 }
 
 func readLocalRepository(path, branch string, dayDuration, maxCommitDuration int64) (res *Response, err error) {
-	cmd := exec.Command("git", "log", branch, "--name-status", "--first-parent", "-m", "--reverse", fmt.Sprintf("--format=commit: %%H%%nAuthor: %%an %%ae%%nDate: %%at"))
+	cmd := exec.Command("git", "log", branch, "--name-status", "--reverse", fmt.Sprintf("--format=commit: %%H%%nAuthor: %%an %%ae%%nDate: %%at"))
 	cmd.Dir = path
 	reader, err := cmd.StdoutPipe()
 	if err != nil {
@@ -232,10 +232,8 @@ func readDate(in *Scanner) (date int64, files []GitOperationFile, err error) {
 				}
 				in.ResetCurrentLine()
 				files, err = readGitOperationFile(in)
-				return
-			} else {
-				return 0, nil, errors.New("git log read line after date unexpected scan end")
 			}
+			return
 		} else {
 			return 0, nil, errors.New(fmt.Sprintf("git log unexpected word. expected: Date.got: %s", line))
 		}
