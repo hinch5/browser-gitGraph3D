@@ -58,7 +58,7 @@ class Vertex {
 	centerY;
 	centerZ;
 	radius;
-	normals;
+	// normals;
 	color;
 	skip;
 	level;
@@ -92,36 +92,53 @@ class Vertex {
 			this.radius = minRect;
 		}
 		const sectorStep = 2 * Math.PI / SPHERE_SECTOR_COUNT, stackStep = Math.PI / SPHERE_STACK_COUNT;
-		for (let i = 0; i <= SPHERE_STACK_COUNT; i++) {
-			const stackAngle = Math.PI / 2 - i * stackStep;
+		coords[(this.skip) * 4] = this.centerX;
+		coords[(this.skip) * 4 + 1] = this.centerY + radius;
+		coords[(this.skip) * 4 + 2] = this.centerZ;
+		coords[(this.skip * 4) + 3] = 1.0;
+		coords[(this.skip) * 4 + 4] = this.centerX;
+		coords[(this.skip) * 4 + 5] = this.centerY - radius;
+		coords[(this.skip) * 4 + 6] = this.centerZ;
+		coords[(this.skip * 4) + 7] = 1.0;
+		colors[(this.skip) * 4] = this.color[0];
+		colors[(this.skip) * 4 + 1] = this.color[1];
+		colors[(this.skip) * 4 + 2] = this.color[2];
+		colors[(this.skip * 4) + 3] = 1.0;
+		colors[(this.skip) * 4 + 4] = this.color[0];
+		colors[(this.skip) * 4 + 5] = this.color[1];
+		colors[(this.skip) * 4 + 6] = this.color[2];
+		colors[(this.skip * 4) + 7] = 1.0;
+		for (let i = 0; i < SPHERE_STACK_COUNT-1; i++) {
+			const stackAngle = Math.PI / 2 - (i+1) * stackStep;
 			xz = this.radius * Math.cos(stackAngle);
 			y = this.centerY + this.radius * Math.sin(stackAngle);
-			for (let j = 0; j <= SPHERE_SECTOR_COUNT; j++) {
+			for (let j = 0; j < SPHERE_SECTOR_COUNT; j++) {
 				const sectorAngle = j * sectorStep;
 
 				z = this.centerZ + xz * Math.sin(sectorAngle);
 				x = this.centerX + xz * Math.cos(sectorAngle);
 
-				coords[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4] = x;
-				coords[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 1] = y;
-				coords[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 2] = z;
-				coords[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 3] = 1.0;
+				coords[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4] = x;
+				coords[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 1] = y;
+				coords[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 2] = z;
+				coords[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 3] = 1.0;
 
-				colors[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4] = this.color[0];
-				colors[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 1] = this.color[1];
-				colors[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 2] = this.color[2];
-				colors[(this.skip + i * (SPHERE_SECTOR_COUNT + 1) + j) * 4 + 3] = this.color[3];
+				colors[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4] = this.color[0];
+				colors[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 1] = this.color[1];
+				colors[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 2] = this.color[2];
+				colors[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 3] = this.color[3];
 			}
 		}
-		coords[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4] = this.centerX;
-		coords[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 1] = this.centerY;
-		coords[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 2] = this.centerZ;
-		coords[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 3] = 1.0;
 
-		colors[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4] = 1.0;
-		colors[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 1] = 1.0;
-		colors[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 2] = 1.0;
-		colors[this.skip * 4 + (SPHERE_STACK_COUNT + 1) * (SPHERE_SECTOR_COUNT + 1) * 4 + 3] = 1.0;
+		coords[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4] = this.centerX;
+		coords[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 1] = this.centerY;
+		coords[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 2] = this.centerZ;
+		coords[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 3] = 1.0;
+
+		colors[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4] = 1.0;
+		colors[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 1] = 1.0;
+		colors[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 2] = 1.0;
+		colors[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 3] = 1.0;
 	};
 
 	calcMoves = (delta) => {

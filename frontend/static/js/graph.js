@@ -120,17 +120,19 @@ class Graph {
 		this.sphereNormal = [];
 		let x, y, z, xz;
 		const sectorStep = 2 * Math.PI / SPHERE_SECTOR_COUNT, stackStep = Math.PI / SPHERE_STACK_COUNT;
-		for (let i = 0; i <= SPHERE_STACK_COUNT; i++) {
-			const stackAngle = Math.PI / 2 - i * stackStep;
+		this.sphereNormal.push(0.0, 1.0, 0.0);
+		this.sphereNormal.push(0.0, -1.0, 0.0);
+		for (let i = 0; i < SPHERE_STACK_COUNT-1; i++) {
+			const stackAngle = Math.PI / 2 - (i + 1) * stackStep;
 			xz = Math.cos(stackAngle);
 			y = Math.sin(stackAngle);
-			for (let j = 0; j <= SPHERE_SECTOR_COUNT; j++) {
-				const sectorAngle = j * sectorStep;
+			for (let j = 0; j < SPHERE_SECTOR_COUNT; j++) {
+						const sectorAngle = j * sectorStep;
 
-				z = xz * Math.sin(sectorAngle);
-				x = xz * Math.cos(sectorAngle);
+						z = xz * Math.sin(sectorAngle);
+						x = xz * Math.cos(sectorAngle);
 
-				this.sphereNormal.push(x, y, z);
+						this.sphereNormal.push(x, y, z);
 			}
 		}
 		this.sphereNormal.push(0.0, 0.0, -1.0);
@@ -432,17 +434,27 @@ class Graph {
 		}
 	};
 	buildIndices = (skip) => {
-		for (let i = 0; i < SPHERE_STACK_COUNT; i++) {
-			let k1 = i * (SPHERE_SECTOR_COUNT + 1);
-			let k2 = k1 + SPHERE_SECTOR_COUNT + 1;
-			for (let j = 0; j < SPHERE_SECTOR_COUNT; j++, k1++, k2++) {
-				if (i !== 0) {
-					this.indices.push(skip + k1, skip + k2, skip + k1 + 1);
-				}
-				if (i !== (SPHERE_STACK_COUNT - 1)) {
-					this.indices.push(skip + k1 + 1, skip + k2, skip + k2 + 1);
-				}
+		for (let i = 0; i < SPHERE_SECTOR_COUNT; i++) {
+			this.indices.push(skip + 0, skip + 2+i, skip + 2 + (i+1)%SPHERE_SECTOR_COUNT);
+		}
+		for (let i = 1; i < SPHERE_STACK_COUNT - 1; i++) {
+			for (let j = 0; j < SPHERE_SECTOR_COUNT; j++) {
+				this.indices.push(
+					skip + 2 + (i-1)*SPHERE_SECTOR_COUNT + j,
+					skip + 2 + i*SPHERE_SECTOR_COUNT + j,
+					skip + 2 + (i-1)*SPHERE_SECTOR_COUNT + (j+1)%SPHERE_SECTOR_COUNT,
+					skip + 2 + (i-1)*SPHERE_SECTOR_COUNT + (j+1)%SPHERE_SECTOR_COUNT,
+					skip + 2 + i*SPHERE_SECTOR_COUNT + (j+1)%SPHERE_SECTOR_COUNT,
+					skip + 2 + i*SPHERE_SECTOR_COUNT + j,
+				);
 			}
+		}
+		for (let i = 0; i < SPHERE_SECTOR_COUNT; i++) {
+			this.indices.push(
+				skip + 1,
+				skip + 2 + SPHERE_SECTOR_COUNT*(SPHERE_STACK_COUNT-2) + i,
+				skip + 2 + SPHERE_SECTOR_COUNT*(SPHERE_STACK_COUNT-2) + (i+1)%SPHERE_SECTOR_COUNT
+			);
 		}
 	};
 	addVertexToBuffer = (vertex, level, rect, skip) => {
