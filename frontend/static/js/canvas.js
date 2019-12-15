@@ -6,6 +6,7 @@ class Canvas {
 	clientY;
 	textCanvas;
 	GL;
+	fullBuffer;
 	vertexBuffer;
 	indexBuffer;
 	colorBuffer;
@@ -19,8 +20,9 @@ class Canvas {
 	edgeProgram;
 	fps;
 	fpsAvg;
+	res;
 
-	constructor() {
+	constructor(updates) {
 		this.canvas = document.getElementById('graph');
 		this.textCanvas = document.getElementById('text-canvas');
 		this.textCanvas.onmouseleave = () => {
@@ -47,6 +49,7 @@ class Canvas {
 			this.GL.getExtension('OES_element_index_uint');
 		}
 		this.fps = [];
+		this.res = [];
 		
 		this.graphProgram = new Program(this.GL, 'vertex-shader', 'fragment-shader');
 		this.edgeProgram = new Program(this.GL, 'vertex-simple-shader', 'fragment-shader');
@@ -56,6 +59,9 @@ class Canvas {
 		this.indexBufferEdges = this.GL.createBuffer();
 		this.colorBuffer = this.GL.createBuffer();
 		this.normalBuffer = this.GL.createBuffer();
+		this.fullBuffer = this.GL.createBuffer();
+
+		this.graph = new Graph(updates);
 	}
 	
 	clear = () => {
@@ -95,23 +101,21 @@ class Canvas {
 		this.GL.uniformMatrix4fv(this.viewUniform, false, view);
 		this.GL.uniformMatrix4fv(this.normalModelUniform, false, normalModel);
 
-		this.graph.iterate(delta);
-		if (this.deadInside) {
-			name = this.graph.getName(this.clientX, this.clientY, model, view);
-		}
 		if (!this.fpsAvg) {
 			this.fpsAvg = deltaFps;
+		}
+		this.graph.iterate(delta);
+		if (this.deadInside) {
+			name = this.graph.getName(this.clientX, this.clientY, this.textCanvas.height/this.textCanvas.width, model, view);
 		}
 		this.initBuffers();
 
 		this.writeDate(begin, this.clientX, this.clientY, name, deltaFps);
 
-		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
-		this.GL.vertexAttribPointer(this.graphProgram.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
-		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
-		this.GL.vertexAttribPointer(this.graphProgram.colorAttrib, 4, this.GL.FLOAT, true, 0, 0);
-		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.normalBuffer);
-		this.GL.vertexAttribPointer(this.graphProgram.normalAttrib, 3, this.GL.FLOAT, true, 0, 0);
+		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.fullBuffer);
+		this.GL.vertexAttribPointer(this.graphProgram.vertexAttrib, 4, this.GL.FLOAT, true, VERTEX_ATTR*4, 0);
+		this.GL.vertexAttribPointer(this.graphProgram.colorAttrib, 4, this.GL.FLOAT, true, VERTEX_ATTR*4, 16);
+		this.GL.vertexAttribPointer(this.graphProgram.normalAttrib, 3, this.GL.FLOAT, true, VERTEX_ATTR*4, 32);
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 		this.GL.drawElements(this.GL.TRIANGLES, this.graph.indices.length, this.GL.UNSIGNED_INT, 0);
 
@@ -122,32 +126,25 @@ class Canvas {
 		this.GL.uniformMatrix4fv(this.viewUniform, false, view);
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
 
-		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
-		this.GL.vertexAttribPointer(this.edgeProgram.vertexAttrib, 4, this.GL.FLOAT, true, 0, 0);
-		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
-		this.GL.vertexAttribPointer(this.edgeProgram.colorAttrib, 4, this.GL.FLOAT, true, 0, 0);
+		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.fullBuffer);
+		this.GL.vertexAttribPointer(this.graphProgram.vertexAttrib, 4, this.GL.FLOAT, true, VERTEX_ATTR*4, 0);
+		this.GL.vertexAttribPointer(this.graphProgram.colorAttrib, 4, this.GL.FLOAT, true, VERTEX_ATTR*4, 16);
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
 		
 		this.GL.drawElements(this.GL.LINES, this.graph.edgeIndices.length, this.GL.UNSIGNED_INT, 0);
 
-		this.GL.drawArrays(this.GL.LINES, this.graph.coords.length / 4, this.graph.edgeCoords.length / 4);
+		this.GL.drawArrays(this.GL.LINES, this.graph.buf.length / VERTEX_ATTR, this.graph.edgeBuf.length / VERTEX_ATTR);
 	};
 	
 	initBuffers = () => {
-		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.vertexBuffer);
-		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.coords.concat(this.graph.edgeCoords)), this.GL.DYNAMIC_DRAW);
+		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.fullBuffer);
+		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.buf.concat(this.graph.edgeBuf)), this.GL.DYNAMIC_DRAW);
 
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint32Array(this.graph.indices), this.GL.DYNAMIC_DRAW);
 
 		this.GL.bindBuffer(this.GL.ELEMENT_ARRAY_BUFFER, this.indexBufferEdges);
 		this.GL.bufferData(this.GL.ELEMENT_ARRAY_BUFFER, new Uint32Array(this.graph.edgeIndices), this.GL.DYNAMIC_DRAW);
-
-		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.colorBuffer);
-		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.colors.concat(this.graph.edgeColors)), this.GL.DYNAMIC_DRAW);
-
-		this.GL.bindBuffer(this.GL.ARRAY_BUFFER, this.normalBuffer);
-		this.GL.bufferData(this.GL.ARRAY_BUFFER, new Float32Array(this.graph.normals.concat(this.graph.edgeNormals)), this.GL.DYNAMIC_DRAW);
 	};
 	resize = () => {
 		this.canvas.width = this.canvas.parentNode.getBoundingClientRect().width;
@@ -172,6 +169,16 @@ class Canvas {
 		this.fps.push(delta);
 		if (this.fps.length === 10) {
 			this.fpsAvg = this.fps.reduce((sum, current, ind, x) => sum + current, 0)/10;
+			if (this.res.length !== 0) {
+				if (this.res[this.res.length-1][1] !== this.graph.buf.length/VERTEX_ATTR/(VERTEX_SIZE+SKIP_COORDS)) {
+					this.res.push([Math.round(1000/this.fpsAvg), this.graph.buf.length/VERTEX_ATTR/(VERTEX_SIZE+SKIP_COORDS), 1]);
+				} else {
+					this.res[this.res.length-1][0] += Math.round(1000/this.fpsAvg);
+					this.res[this.res.length-1][2]++;
+				}
+			} else {
+				this.res.push([Math.round(1000/this.fpsAvg), this.graph.buf.length/VERTEX_ATTR/(VERTEX_SIZE+SKIP_COORDS), 1]);
+			}
 			this.fps = [];
 		}
 		ctx.fillText(dateString, pos, this.font);
@@ -192,9 +199,36 @@ class Canvas {
 			ctx.fillText(name, clientX, clientY);
 		}
 	};
+
+	resToString = () => {
+		return this.res
+			.map((v) => [Math.round(v[0]/v[2]), v[1]])
+			.map((v) => '' + v[1] + ',' + v[0])
+			.reduce((prev, next) => prev + '\n' + next, '\'Количество вершин\',\'fps\'');
+	};
+	saveRes = () => {
+		const pom = document.createElement('a');
+		pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(this.resToString()));
+		pom.setAttribute('download', 'res.csv');
+		if (document.createEvent) {
+			const event = document.createEvent('MouseEvents');
+			event.initEvent('click', true, true);
+			pom.dispatchEvent(event);
+		} else {
+			pom.click();
+		}
+	};
 	
 	isEnd = () => {
 		return this.graph.isEnd();
+	};
+
+	checkSkip = () => {
+		return this.graph.checkSkip();
+	};
+
+	iterate = (delta) => {
+		return this.graph.iterate(delta);
 	};
 
 	get width() {

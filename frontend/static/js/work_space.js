@@ -12,6 +12,7 @@ const E_KEY = 'KeyE';
 const A_KEY = 'KeyA';
 const S_KEY = 'KeyS';
 const D_KEY = 'KeyD';
+const F_KEY = 'KeyF';
 const SPACE_KEY = 'Space';
 
 const DEGREE_PER_SECOND = 100;
@@ -22,14 +23,15 @@ const SCALE_PER_MILLISECOND = SCALE_PER_SECOND/1000;
 const TRANSLATE_PER_MILLISECOND = TRANSLATE_PER_SECOND/1000;
 
 const MIN_PERCENT_SPLIT = 0.25;
-const SPHERE_STACK_COUNT = 10;
-const SPHERE_SECTOR_COUNT = 10;
+const SPHERE_STACK_COUNT = 8;
+const SPHERE_SECTOR_COUNT = 8;
 const VERTEX_SIZE = SPHERE_SECTOR_COUNT * (SPHERE_STACK_COUNT - 1) + 2;
-const INDEX_SIZE = 2*SPHERE_SECTOR_COUNT*(SPHERE_STACK_COUNT-2) + 2*SPHERE_SECTOR_COUNT;
+const INDEX_SIZE = 2*SPHERE_SECTOR_COUNT*(SPHERE_STACK_COUNT-1);
 const SKIP_COORDS = 1;
 const GRAPH_WIDTH = 1.4;
 const GRAPH_HEIGHT = 1.4;
 const GRAPH_DEPTH = 1.4;
+const VERTEX_ATTR = 4 + 4 + 3;
 
 class WorkSpace {
 	angles;
@@ -39,7 +41,6 @@ class WorkSpace {
 	scale;
 	scaleSpeed;
 	canvas;
-	graph;
 	aspectRatioBalance;
 	now;
 	fpsNow;
@@ -64,10 +65,6 @@ class WorkSpace {
 		this.ended = false;
 		window.addEventListener('keydown', this.startTransform(true));
 		window.addEventListener('keyup', this.startTransform(false));
-		window.addEventListener('resize', this.resize);
-
-		this.canvas = new Canvas();
-		this.resize();
 
 		this.validateForm();
 		this.validateGraphSubmit();
@@ -201,11 +198,14 @@ class WorkSpace {
 			}
 			this.updates.splice(this.updates.length - 1 - dropCount, dropCount);
 		}
-		this.graph = new Graph(this.updates);
-		this.canvas.graph = this.graph;
+
+		this.canvas = new Canvas(this.updates);
+		window.addEventListener('resize', this.resize);
+		this.resize();
+
 		if (startDate) {
 			const delta = (startDate.getTime() - this.begin) / (1000 * 60 * 60 * 24) * this.dayDuration;
-			this.graph.iterate(delta);
+			this.canvas.iterate(delta);
 			this.begin = startDate.getTime();
 		}
 		this.canvas.initBuffers();
@@ -246,6 +246,8 @@ class WorkSpace {
 				this.translateSpeed[0] = action;
 			} else if (ev.code === SPACE_KEY && action) {
 				this.paused = !this.paused;
+			} else if (ev.code === F_KEY && action) {
+				this.canvas.saveRes();
 			}
 		}
 	};
@@ -298,7 +300,7 @@ class WorkSpace {
 				this.now = t;
 			}
 			if (this.skip !== 0) {
-				const skip = this.graph.checkSkip();
+				const skip = this.canvas.checkSkip();
 				if (skip > this.skip) {
 					delta = skip;
 				}
@@ -316,7 +318,7 @@ class WorkSpace {
 		glMatrix.mat4.transpose(normalModel, normalModel);
 		this.canvas.draw(model, view, normalModel, delta, this.begin, deltaFps);
 
-		setTimeout(this.drawScene, 15);
+		setTimeout(this.drawScene, 4);
 	};
 	resize = () => {
 		this.canvas.resize();

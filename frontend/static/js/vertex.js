@@ -58,7 +58,6 @@ class Vertex {
 	centerY;
 	centerZ;
 	radius;
-	// normals;
 	color;
 	skip;
 	level;
@@ -80,7 +79,7 @@ class Vertex {
 		this.color = [0.0, 1.0, 0.0, 1.0];
 	}
 
-	buildSphere = (height, radius, coords, colors) => {
+	buildSphere = (height, radius, buf, normals) => {
 		let x, y, z, xz;
 		this.centerX = this.boundRect.centerX;
 		this.centerY = GRAPH_HEIGHT / 2 - (this.level * (GRAPH_HEIGHT / height)) - (GRAPH_HEIGHT / (2 * height));
@@ -92,22 +91,28 @@ class Vertex {
 			this.radius = minRect;
 		}
 		const sectorStep = 2 * Math.PI / SPHERE_SECTOR_COUNT, stackStep = Math.PI / SPHERE_STACK_COUNT;
-		coords[(this.skip) * 4] = this.centerX;
-		coords[(this.skip) * 4 + 1] = this.centerY + radius;
-		coords[(this.skip) * 4 + 2] = this.centerZ;
-		coords[(this.skip * 4) + 3] = 1.0;
-		coords[(this.skip) * 4 + 4] = this.centerX;
-		coords[(this.skip) * 4 + 5] = this.centerY - radius;
-		coords[(this.skip) * 4 + 6] = this.centerZ;
-		coords[(this.skip * 4) + 7] = 1.0;
-		colors[(this.skip) * 4] = this.color[0];
-		colors[(this.skip) * 4 + 1] = this.color[1];
-		colors[(this.skip) * 4 + 2] = this.color[2];
-		colors[(this.skip * 4) + 3] = 1.0;
-		colors[(this.skip) * 4 + 4] = this.color[0];
-		colors[(this.skip) * 4 + 5] = this.color[1];
-		colors[(this.skip) * 4 + 6] = this.color[2];
-		colors[(this.skip * 4) + 7] = 1.0;
+		buf[this.skip * VERTEX_ATTR] = this.centerX;
+		buf[(this.skip) * VERTEX_ATTR + 1] = this.centerY + this.radius;
+		buf[(this.skip) * VERTEX_ATTR + 2] = this.centerZ;
+		buf[(this.skip * VERTEX_ATTR) + 3] = 1.0;
+		buf[(this.skip) * VERTEX_ATTR + 11] = this.centerX;
+		buf[(this.skip) * VERTEX_ATTR + 12] = this.centerY - this.radius;
+		buf[(this.skip) * VERTEX_ATTR + 13] = this.centerZ;
+		buf[(this.skip * VERTEX_ATTR) + 14] = 1.0;
+		buf[(this.skip) * VERTEX_ATTR + 4] = this.color[0];
+		buf[(this.skip) * VERTEX_ATTR + 5] = this.color[1];
+		buf[(this.skip) * VERTEX_ATTR + 6] = this.color[2];
+		buf[(this.skip * VERTEX_ATTR) + 7] = 1.0;
+		buf[(this.skip) * VERTEX_ATTR + 15] = this.color[0];
+		buf[(this.skip) * VERTEX_ATTR + 16] = this.color[1];
+		buf[(this.skip) * VERTEX_ATTR + 17] = this.color[2];
+		buf[(this.skip * VERTEX_ATTR) + 18] = 1.0;
+		buf[this.skip*VERTEX_ATTR + 8] = normals[0];
+		buf[this.skip*VERTEX_ATTR + 9] = normals[1];
+		buf[this.skip*VERTEX_ATTR + 10] = normals[2];
+		buf[this.skip*VERTEX_ATTR + 19] = normals[3];
+		buf[this.skip*VERTEX_ATTR + 20] = normals[4];
+		buf[this.skip*VERTEX_ATTR + 21] = normals[5];
 		for (let i = 0; i < SPHERE_STACK_COUNT-1; i++) {
 			const stackAngle = Math.PI / 2 - (i+1) * stackStep;
 			xz = this.radius * Math.cos(stackAngle);
@@ -118,27 +123,35 @@ class Vertex {
 				z = this.centerZ + xz * Math.sin(sectorAngle);
 				x = this.centerX + xz * Math.cos(sectorAngle);
 
-				coords[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4] = x;
-				coords[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 1] = y;
-				coords[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 2] = z;
-				coords[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 3] = 1.0;
+				buf[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * VERTEX_ATTR] = x;
+				buf[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * VERTEX_ATTR + 1] = y;
+				buf[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * VERTEX_ATTR + 2] = z;
+				buf[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * VERTEX_ATTR + 3] = 1.0;
 
-				colors[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4] = this.color[0];
-				colors[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 1] = this.color[1];
-				colors[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 2] = this.color[2];
-				colors[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * 4 + 3] = this.color[3];
+				buf[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * VERTEX_ATTR + 4] = this.color[0];
+				buf[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * VERTEX_ATTR + 5] = this.color[1];
+				buf[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * VERTEX_ATTR + 6] = this.color[2];
+				buf[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * VERTEX_ATTR + 7] = this.color[3];
+
+				buf[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * VERTEX_ATTR + 8] = normals[(2 + i*SPHERE_SECTOR_COUNT + j)*3];
+				buf[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * VERTEX_ATTR + 9] = normals[(2 + i*SPHERE_SECTOR_COUNT + j)*3 + 1];
+				buf[(this.skip + i * SPHERE_SECTOR_COUNT + 2 + j) * VERTEX_ATTR + 10] = normals[(2 + i*SPHERE_SECTOR_COUNT + j)*3 + 2];
 			}
 		}
 
-		coords[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4] = this.centerX;
-		coords[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 1] = this.centerY;
-		coords[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 2] = this.centerZ;
-		coords[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 3] = 1.0;
+		buf[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * VERTEX_ATTR] = this.centerX;
+		buf[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * VERTEX_ATTR + 1] = this.centerY;
+		buf[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * VERTEX_ATTR + 2] = this.centerZ;
+		buf[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * VERTEX_ATTR + 3] = 1.0;
 
-		colors[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4] = 1.0;
-		colors[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 1] = 1.0;
-		colors[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 2] = 1.0;
-		colors[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * 4 + 3] = 1.0;
+		buf[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * VERTEX_ATTR + 4] = 1.0;
+		buf[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * VERTEX_ATTR + 5] = 1.0;
+		buf[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * VERTEX_ATTR + 6] = 1.0;
+		buf[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * VERTEX_ATTR + 7] = 1.0;
+
+		buf[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * VERTEX_ATTR + 8] = normals[(2 + SPHERE_SECTOR_COUNT*(SPHERE_STACK_COUNT-1))*3];
+		buf[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * VERTEX_ATTR + 9] = normals[(2 + SPHERE_SECTOR_COUNT*(SPHERE_STACK_COUNT-1))*3 + 1];
+		buf[(this.skip + (SPHERE_STACK_COUNT - 1) * SPHERE_SECTOR_COUNT + 2) * VERTEX_ATTR + 10] = normals[(2 + SPHERE_SECTOR_COUNT*(SPHERE_STACK_COUNT-1))*3 + 2];
 	};
 
 	calcMoves = (delta) => {
@@ -158,23 +171,23 @@ class Vertex {
 		this.now = delta;
 		return [mv2[0] - mv1[0], mv2[1] - mv1[1], mv2[2] - mv1[2]];
 	};
-	move = (coords, colors, delta) => {
+	move = (buf, delta) => {
 		if (this.acceleration) {
 			const moves = this.calcMoves1(delta);
 			for (let i = 0; i < 3; i++) {
 				for (let j = 0; j < VERTEX_SIZE + SKIP_COORDS; j++) {
-					coords[4 * (j + this.skip) + i] += moves[i];
+					buf[VERTEX_ATTR * (j + this.skip) + i] += moves[i];
 				}
 			}
 		}
 		if (this.transparencySpeed) {
 			for (let i = 0; i < VERTEX_SIZE; i++) {
-				colors[(i + this.skip) * 4 + 1] = delta * this.transparencySpeed;
+				buf[(i + this.skip) * VERTEX_ATTR + 5] = delta * this.transparencySpeed;
 			}
 		}
 		if (this.removeSpeed) {
 			for (let i = 0; i < VERTEX_SIZE; i++) {
-				colors[(i + this.skip) * 4 + 1] = 1.0 - delta * this.removeSpeed;
+				buf[(i + this.skip) * VERTEX_ATTR + 5] = 1.0 - delta * this.removeSpeed;
 			}
 		}
 	};
@@ -195,9 +208,9 @@ class Vertex {
 		this.boundRect = rect;
 	};
 
-	resetAcceleration = (coords, colors) => {
+	resetAcceleration = (buf) => {
 		if (this.acceleration) {
-			this.move(coords, colors, this.time);
+			this.move(buf, this.time);
 			this.centerX += this.distance[0];
 			this.centerY += this.distance[1];
 			this.centerZ += this.distance[2];
@@ -211,10 +224,10 @@ class Vertex {
 		this.now = 0;
 	};
 
-	resetTransparencySpeed = (colors) => {
+	resetTransparencySpeed = (buf) => {
 		if (this.transparencySpeed) {
 			for (let i = 0; i < VERTEX_SIZE; i++) {
-				colors[(this.skip + i) * 4 + 1] = 1.0;
+				buf[(this.skip + i) * VERTEX_ATTR + 5] = 1.0;
 			}
 		}
 		this.transparencySpeed = null;
@@ -226,10 +239,10 @@ class Vertex {
 		this.now = 0;
 	};
 
-	resetRemoveSpeed = (colors) => {
+	resetRemoveSpeed = (buf) => {
 		if (this.removeSpeed) {
 			for (let i = 0; i < VERTEX_SIZE; i++) {
-				colors[(this.skip + i) * 4 + 1] = 0.0;
+				buf[(this.skip + i) * VERTEX_ATTR + 5] = 0.0;
 			}
 		}
 		this.removeSpeed = null;
@@ -284,15 +297,12 @@ class GitContributor extends Vertex {
 	name;
 	updates;
 	dir;
-	edgeCoords;
-	edgeColors;
-	edgeNormals;
+	edgeBuf;
 
 	constructor(name, color) {
 		super(0);
 		this.name = name;
-		this.edgeCoords = [];
-		this.edgeColors = [];
+		this.edgeBuf = [];
 		if (!color) {
 			this.color = [1.0, 0.0, 0.0, 1.0];
 		} else {
@@ -305,25 +315,33 @@ class GitContributor extends Vertex {
 		}
 	}
 
-	buildEdges = (coords) => {
-		this.edgeCoords = [];
-		this.edgeColors = [];
-		this.edgeNormals = [];
+	buildEdges = (buf) => {
+		this.edgeBuf = [];
 		for (let i = 0; i < this.updates.length; i++) {
 			for (let j = 0; j < this.updates[i].vertexSet.length; j++) {
-				this.edgeCoords = this.edgeCoords.concat(coords.slice((this.skip + VERTEX_SIZE) * 4, (this.skip + VERTEX_SIZE + SKIP_COORDS) * 4));
-				this.edgeCoords = this.edgeCoords.concat(coords.slice(
-					(this.updates[i].vertexSet[j].skip + VERTEX_SIZE) * 4,
-					(this.updates[i].vertexSet[j].skip + VERTEX_SIZE + SKIP_COORDS) * 4)
+				this.edgeBuf = this.edgeBuf.concat(buf.slice(
+					(this.skip + VERTEX_SIZE) * VERTEX_ATTR,
+					(this.skip + VERTEX_SIZE) * VERTEX_ATTR + 4));
+				if (this.updates[i].action === 0) {
+					this.edgeBuf = this.edgeBuf.concat([0.0, 1.0, 0.0, 1.0]);
+				} else if (this.updates[i].action === 1) {
+					this.edgeBuf = this.edgeBuf.concat([0.0, 0.0, 1.0, 1.0]);
+				} else {
+					this.edgeBuf = this.edgeBuf.concat([1.0, 0.0, 0.0, 1.0]);
+				}
+				this.edgeBuf.push(0.0, 0.0, -1.0);
+				this.edgeBuf = this.edgeBuf.concat(buf.slice(
+					(this.updates[i].vertexSet[j].skip + VERTEX_SIZE) * VERTEX_ATTR,
+					(this.updates[i].vertexSet[j].skip + VERTEX_SIZE ) * VERTEX_ATTR + 4)
 				);
 				if (this.updates[i].action === 0) {
-					this.edgeColors = this.edgeColors.concat([0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]);
+					this.edgeBuf = this.edgeBuf.concat([0.0, 1.0, 0.0, 1.0]);
 				} else if (this.updates[i].action === 1) {
-					this.edgeColors = this.edgeColors.concat([0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0]);
+					this.edgeBuf = this.edgeBuf.concat([0.0, 0.0, 1.0, 1.0]);
 				} else {
-					this.edgeColors = this.edgeColors.concat([1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0]);
+					this.edgeBuf = this.edgeBuf.concat([1.0, 0.0, 0.0, 1.0]);
 				}
-				this.edgeNormals = this.edgeNormals.concat(0.0, 0.0, -1.0, 0.0, 0.0, -1.0);
+				this.edgeBuf.push(0.0, 0.0, -1.0);
 			}
 		}
 	};
@@ -332,16 +350,8 @@ class GitContributor extends Vertex {
 		return this.name;
 	}
 
-	get edgeCoords() {
-		return this.edgeCoords;
-	}
-
-	get edgeColors() {
-		return this.edgeColors;
-	}
-
-	get edgeNormals() {
-		return this.edgeNormals;
+	get edgeBuf() {
+		return this.edgeBuf;
 	}
 
 	set dir(dir) {

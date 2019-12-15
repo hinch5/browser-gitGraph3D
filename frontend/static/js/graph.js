@@ -66,14 +66,10 @@ class UpdateFile {
 class Graph {
 	height;
 	heightMap;
-	coords;
 	indices;
-	colors;
-	normals;
+	buf;
 	sphereNormal;
-	edgeCoords;
-	edgeColors;
-	edgeNormals;
+	edgeBuf;
 	root;
 	edgeIndices;
 	contributors;
@@ -95,13 +91,9 @@ class Graph {
 		this.heightMap = new Map();
 		this.heightMap.set(1, 1);
 		this.contributorColors = new Map();
-		this.coords = [];
 		this.indices = [];
-		this.colors = [];
-		this.normals = [];
-		this.edgeCoords = [];
-		this.edgeColors = [];
-		this.edgeNormals = [];
+		this.buf = [];
+		this.edgeBuf = [];
 		this.edgeIndices = [];
 		this.contributors = [];
 		this.orderedVertices = [];
@@ -122,26 +114,26 @@ class Graph {
 		const sectorStep = 2 * Math.PI / SPHERE_SECTOR_COUNT, stackStep = Math.PI / SPHERE_STACK_COUNT;
 		this.sphereNormal.push(0.0, 1.0, 0.0);
 		this.sphereNormal.push(0.0, -1.0, 0.0);
-		for (let i = 0; i < SPHERE_STACK_COUNT-1; i++) {
+		for (let i = 0; i < SPHERE_STACK_COUNT - 1; i++) {
 			const stackAngle = Math.PI / 2 - (i + 1) * stackStep;
 			xz = Math.cos(stackAngle);
 			y = Math.sin(stackAngle);
 			for (let j = 0; j < SPHERE_SECTOR_COUNT; j++) {
-						const sectorAngle = j * sectorStep;
+				const sectorAngle = j * sectorStep;
 
-						z = xz * Math.sin(sectorAngle);
-						x = xz * Math.cos(sectorAngle);
+				z = xz * Math.sin(sectorAngle);
+				x = xz * Math.cos(sectorAngle);
 
-						this.sphereNormal.push(x, y, z);
+				this.sphereNormal.push(x, y, z);
 			}
 		}
 		this.sphereNormal.push(0.0, 0.0, -1.0);
 	};
 
 	randomColor = () => {
-		return Math.floor(256*Math.random()).toString(16) +
-			Math.floor(256*Math.random()).toString(16) +
-			Math.floor(256*Math.random()).toString(16)
+		return Math.floor(256 * Math.random()).toString(16) +
+			Math.floor(256 * Math.random()).toString(16) +
+			Math.floor(256 * Math.random()).toString(16)
 	};
 	startUpdate = () => {
 		this.newVertices = 0;
@@ -211,14 +203,14 @@ class Graph {
 	};
 	finishUpdate = () => {
 		for (let i = 0; i < this.contributors.length; i++) {
-			this.contributors[i].resetTransparencySpeed(this.colors);
-			this.contributors[i].resetRemoveSpeed(this.colors);
-			this.contributors[i].resetAcceleration(this.coords, this.colors);
+			this.contributors[i].resetTransparencySpeed(this.buf);
+			this.contributors[i].resetRemoveSpeed(this.buf);
+			this.contributors[i].resetAcceleration(this.buf);
 		}
 		for (let i = 0; i < this.movingVertices.length; i++) {
-			this.movingVertices[i].resetTransparencySpeed(this.colors);
-			this.movingVertices[i].resetRemoveSpeed(this.colors);
-			this.movingVertices[i].resetAcceleration(this.coords, this.colors);
+			this.movingVertices[i].resetTransparencySpeed(this.buf);
+			this.movingVertices[i].resetRemoveSpeed(this.buf);
+			this.movingVertices[i].resetAcceleration(this.buf);
 		}
 		if (this.updates[this.updateIndex].name !== '') {
 			const updateFiles = this.updates[this.updateIndex].updates;
@@ -237,8 +229,7 @@ class Graph {
 			this.calcHeight();
 		}
 		this.currentContributor = null;
-		this.edgeCoords = [];
-		this.edgeColors = [];
+		this.edgeBuf = [];
 		this.operating = false;
 	};
 	iterate = (delta) => {
@@ -261,8 +252,7 @@ class Graph {
 			this.now += delta;
 		} else {
 			this.currentContributor = null;
-			this.edgeCoords = [];
-			this.edgeColors = [];
+			this.edgeBuf = [];
 		}
 	};
 	isEnd = () => {
@@ -364,7 +354,7 @@ class Graph {
 					} else {
 						const newR = this.calcRadius(vertexSet[0][0].level + 1, rectSplitted[1]);
 						if (newR !== vertexSet[0][0].contributor.radius) {
-							vertexSet[0][0].contributor.buildSphere(this.height, newR, this.coords, this.colors);
+							vertexSet[0][0].contributor.buildSphere(this.height, newR, this.buf, this.sphereNormal);
 						}
 						vertexSet[0][0].contributor.calcAcceleration(this.height, rectSplitted[1], duration);
 					}
@@ -375,7 +365,7 @@ class Graph {
 					} else {
 						const newR = this.calcRadius(vertexSet[0][0].level + 1, rectSplitted[0]);
 						if (newR !== vertexSet[0][0].radius) {
-							vertexSet[0][0].buildSphere(this.height, newR, this.coords, this.colors);
+							vertexSet[0][0].buildSphere(this.height, newR, this.buf, this.sphereNormal);
 						}
 						if (vertexSet[0][0].removing) {
 							vertexSet[0][0].calcRemoveSpeed(this.height, duration);
@@ -394,7 +384,7 @@ class Graph {
 					} else {
 						const newR = this.calcRadius(vertexSet[0][0].level + 1, vertexSet[1]);
 						if (newR !== vertexSet[0][0].radius) {
-							vertexSet[0][0].buildSphere(this.height, newR, this.coords, this.colors);
+							vertexSet[0][0].buildSphere(this.height, newR, this.buf, this.sphereNormal);
 						}
 						if (vertexSet[0][0].removing) {
 							vertexSet[0][0].calcRemoveSpeed(this.height, duration);
@@ -435,34 +425,33 @@ class Graph {
 	};
 	buildIndices = (skip) => {
 		for (let i = 0; i < SPHERE_SECTOR_COUNT; i++) {
-			this.indices.push(skip + 0, skip + 2+i, skip + 2 + (i+1)%SPHERE_SECTOR_COUNT);
+			this.indices.push(skip + 0, skip + 2 + i, skip + 2 + (i + 1) % SPHERE_SECTOR_COUNT);
 		}
 		for (let i = 1; i < SPHERE_STACK_COUNT - 1; i++) {
 			for (let j = 0; j < SPHERE_SECTOR_COUNT; j++) {
 				this.indices.push(
-					skip + 2 + (i-1)*SPHERE_SECTOR_COUNT + j,
-					skip + 2 + i*SPHERE_SECTOR_COUNT + j,
-					skip + 2 + (i-1)*SPHERE_SECTOR_COUNT + (j+1)%SPHERE_SECTOR_COUNT,
-					skip + 2 + (i-1)*SPHERE_SECTOR_COUNT + (j+1)%SPHERE_SECTOR_COUNT,
-					skip + 2 + i*SPHERE_SECTOR_COUNT + (j+1)%SPHERE_SECTOR_COUNT,
-					skip + 2 + i*SPHERE_SECTOR_COUNT + j,
+					skip + 2 + (i - 1) * SPHERE_SECTOR_COUNT + j,
+					skip + 2 + i * SPHERE_SECTOR_COUNT + j,
+					skip + 2 + (i - 1) * SPHERE_SECTOR_COUNT + (j + 1) % SPHERE_SECTOR_COUNT,
+					skip + 2 + (i - 1) * SPHERE_SECTOR_COUNT + (j + 1) % SPHERE_SECTOR_COUNT,
+					skip + 2 + i * SPHERE_SECTOR_COUNT + (j + 1) % SPHERE_SECTOR_COUNT,
+					skip + 2 + i * SPHERE_SECTOR_COUNT + j,
 				);
 			}
 		}
 		for (let i = 0; i < SPHERE_SECTOR_COUNT; i++) {
 			this.indices.push(
 				skip + 1,
-				skip + 2 + SPHERE_SECTOR_COUNT*(SPHERE_STACK_COUNT-2) + i,
-				skip + 2 + SPHERE_SECTOR_COUNT*(SPHERE_STACK_COUNT-2) + (i+1)%SPHERE_SECTOR_COUNT
+				skip + 2 + SPHERE_SECTOR_COUNT * (SPHERE_STACK_COUNT - 2) + i,
+				skip + 2 + SPHERE_SECTOR_COUNT * (SPHERE_STACK_COUNT - 2) + (i + 1) % SPHERE_SECTOR_COUNT
 			);
 		}
 	};
 	addVertexToBuffer = (vertex, level, rect, skip) => {
 		vertex.boundRect = rect;
 		vertex.skip = skip;
-		vertex.buildSphere(this.height, this.calcRadius(level + 1, rect), this.coords, this.colors);
+		vertex.buildSphere(this.height, this.calcRadius(level + 1, rect), this.buf, this.sphereNormal);
 		this.buildIndices(vertex.skip);
-		this.normals = this.normals.concat(this.sphereNormal);
 		this.skipMap.set(vertex.skip, vertex);
 	};
 	removeVertexFromBuffer = (vertex) => {
@@ -470,31 +459,24 @@ class Graph {
 		if (last !== vertex.skip) {
 			const lastVertex = this.skipMap.get(last);
 			for (let i = 0; i < VERTEX_SIZE + SKIP_COORDS; i++) {
-				this.coords[(vertex.skip + i) * 4] = this.coords[(last + i) * 4];
-				this.coords[(vertex.skip + i) * 4 + 1] = this.coords[(last + i) * 4 + 1];
-				this.coords[(vertex.skip + i) * 4 + 2] = this.coords[(last + i) * 4 + 2];
-				this.colors[(vertex.skip + i) * 4] = this.colors[(last + i) * 4];
-				this.colors[(vertex.skip + i) * 4 + 1] = this.colors[(last + i) * 4 + 1];
-				this.colors[(vertex.skip + i) * 4 + 2] = this.colors[(last + i) * 4 + 2];
+				for (let j = 0; j < VERTEX_ATTR; j++) {
+					this.buf[(vertex.skip + i)*VERTEX_ATTR + j] = this.buf[(last+i)*VERTEX_ATTR + j];
+				}
 			}
 			lastVertex.skip = vertex.skip;
 			this.skipMap.set(lastVertex.skip, lastVertex);
 		}
-		this.coords.splice(last * 4, (VERTEX_SIZE + SKIP_COORDS) * 4);
-		this.colors.splice(last * 4, (VERTEX_SIZE + SKIP_COORDS) * 4);
-		this.normals.splice(last * 4, (VERTEX_SIZE + SKIP_COORDS) * 3);
+		this.buf.splice(last*VERTEX_ATTR, (VERTEX_SIZE+SKIP_COORDS)*VERTEX_ATTR);
 		this.indices.splice((this.root.size + this.contributors.length - 1) * (INDEX_SIZE * 3), INDEX_SIZE * 3);
 	};
 	buildCoords = (delta) => {
 		if (this.operating && delta > 0) {
 			for (let i = 0; i < this.movingVertices.length; i++) {
-				this.movingVertices[i].move(this.coords, this.colors, delta);
+				this.movingVertices[i].move(this.buf, delta);
 			}
 			if (this.currentContributor) {
-				this.currentContributor.buildEdges(this.coords);
-				this.edgeCoords = this.currentContributor.edgeCoords;
-				this.edgeColors = this.currentContributor.edgeColors;
-				this.edgeNormals = this.currentContributor.edgeNormals;
+				this.currentContributor.buildEdges(this.buf);
+				this.edgeBuf = this.currentContributor.edgeBuf;
 			}
 		}
 	};
@@ -524,18 +506,20 @@ class Graph {
 			return Math.min(0.02, minRect);
 		}
 	};
-	getName = (x, y, model, view) => {
+	getName = (x, y, ratio, model, view) => {
 		const resVertices = [];
 		const modelView = glMatrix.mat4.create();
+		const ratio2 = ratio*ratio;
 		glMatrix.mat4.multiply(modelView, view, model);
 		for (let i = 0; i < this.orderedVertices.length; i++) {
-			let centerCoords = this.coords.slice((this.orderedVertices[i].skip + 1) * 4 - 4, (this.orderedVertices[i].skip + 1) * 4);
+			let centerCoords = this.buf.slice((this.orderedVertices[i].skip + VERTEX_SIZE) * VERTEX_ATTR, (this.orderedVertices[i].skip + VERTEX_SIZE) * VERTEX_ATTR + 4);
 			let center = glMatrix.vec4.fromValues(centerCoords[0], centerCoords[1], centerCoords[2], centerCoords[3]);
 			glMatrix.vec4.transformMat4(center, center, modelView);
 			const deltaX = center[0] - x;
 			const deltaY = center[1] - y;
-			const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-			if (dist < this.orderedVertices[i].radius) {
+			const r2 = this.orderedVertices[i].radius*this.orderedVertices[i].radius;
+			const ellipseValue = (deltaX*deltaX)/(r2*ratio2) + (deltaY*deltaY)/r2;
+			if (ellipseValue <= 1) {
 				if (this.orderedVertices[i].path) {
 					resVertices.push([center, '/' + this.orderedVertices[i].path.join('/')]);
 				} else {
@@ -553,8 +537,12 @@ class Graph {
 		}
 	};
 
-	get coords() {
-		return this.coords;
+	get buf() {
+		return this.buf;
+	}
+
+	get edgeBuf() {
+		return this.edgeBuf;
 	}
 
 	get indices() {
@@ -563,25 +551,5 @@ class Graph {
 
 	get edgeIndices() {
 		return this.edgeIndices;
-	}
-
-	get colors() {
-		return this.colors;
-	}
-
-	get normals() {
-		return this.normals;
-	}
-
-	get edgeCoords() {
-		return this.edgeCoords;
-	}
-
-	get edgeColors() {
-		return this.edgeColors;
-	}
-
-	get edgeNormals() {
-		return this.edgeNormals;
 	}
 }
